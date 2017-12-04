@@ -13,6 +13,7 @@ use cgmath::Point2;
 
 use glx;
 use render::Renderer;
+use fps::FpsCounter;
 
 const TITLE: &'static str = "rusty-boids";
 
@@ -26,9 +27,9 @@ pub enum AppError {
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            AppError::GlCreation(ref err) => 
+            AppError::GlCreation(ref err) =>
                 write!(f, "GL creation error, {}", err),
-            AppError::GlContext(ref err) => 
+            AppError::GlContext(ref err) =>
                 write!(f, "GL context error, {}", err),
             AppError::Window(ref err) =>
                 write!(f, "Window error, {}", err),
@@ -79,16 +80,19 @@ impl BoidsApp {
         }
     }
 
+    //FIXME: Seems like vsync stops applying when window off screen
     pub fn run(&mut self) -> Result<(), AppError>{
         let mut events_loop = EventsLoop::new();
         let window = AppWindow::new(&events_loop)?;
         window.activate()?;
+        //TODO: Only print opengl info if debug is set
         print_opengl_info();
         let (w, h) = window.get_size()?;
         let renderer = Renderer::new(w, h);
+        let mut fps_counter = FpsCounter::new();
         self.running = true ;
-        //TODO: Keep track of FPS
         while self.running {
+            fps_counter.tick(|fps| window.display_fps(fps));
             //TODO: Update simulation
             events_loop.poll_events(|e| self.handle_event(e));
             renderer.render();
@@ -171,7 +175,9 @@ impl AppWindow {
                     "Tried to get size of closed window".to_string()))
     }
 
-    //TODO: Function to display fps in window border
+    fn display_fps(&self, fps: u32) {
+        self.window.set_title(&format!("{} - {} fps", TITLE, fps));
+    }
 }
 
 fn print_opengl_info() {

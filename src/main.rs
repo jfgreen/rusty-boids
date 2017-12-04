@@ -5,6 +5,7 @@ extern crate cgmath;
 mod app;
 mod glx;
 mod render;
+mod fps;
 
 use std::process;
 
