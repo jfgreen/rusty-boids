@@ -91,6 +91,7 @@ impl BoidsApp {
         let mut fps_counter = FpsCounter::new();
         let mut simulation = Simulation::new();
         self.running = true ;
+        renderer.init_gl_pipeline();
         while self.running {
             fps_counter.tick(|fps| window.display_fps(fps));
             simulation.update();

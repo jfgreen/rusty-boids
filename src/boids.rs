@@ -18,7 +18,7 @@ impl Simulation {
 
     pub fn update(&mut self) {
         for i in 0..self.last_positions.len() {
-            self.last_positions[i].x += 0.01;
+            self.last_positions[i].x += 0.1;
         }
     }
 

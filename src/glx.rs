@@ -76,6 +76,32 @@ impl ShaderProgram {
             gl::UseProgram(self.program_id);
         }
     }
+
+    pub fn get_atrib_location(&self, name: &str) -> Result<GLuint, String> {
+        let c_name = CString::new(name).unwrap();
+        unsafe {
+            let location = gl::GetAttribLocation(self.program_id, c_name.as_ptr());
+            if location == -1 {
+                Err(format!("could not find attribute '{}'", name))
+            } else {
+                Ok(location as GLuint)
+            }
+        }
+    }
+
+
+    pub fn get_uniform_location(&self, name: &str) -> Result<GLint, String> {
+        let c_name = CString::new(name).unwrap();
+        unsafe {
+            let location = gl::GetUniformLocation(self.program_id, c_name.as_ptr());
+            if location == -1 {
+                Err(format!("'{}' does not correspond to an active uniform variable", name))
+            } else {
+                Ok(location)
+            }
+        }
+    }
+
 }
 
 unsafe fn compile_shader(src: &str, shader_type: GLenum) -> Result<GLuint, String> {
