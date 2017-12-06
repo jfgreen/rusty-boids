@@ -1,6 +1,9 @@
-// Glx = Gl extras (helpers)
+// Glx = Open GL extras (aka helper functions)
+
 use std::ffi::{CStr, CString};
 use std::ptr;
+use std::fmt;
+use std::error;
 
 use gl;
 use gl::types::*;
@@ -50,14 +53,47 @@ pub fn clear_screen(r: GLfloat, g: GLfloat, b: GLfloat) {
     }
 }
 
-// TODO: Implement propper error type for shader
+#[derive(Debug)]
+pub enum ShaderError {
+    Compilation(String),
+    Linking(String),
+    Lookup(String),
+}
+
+impl fmt::Display for ShaderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ShaderError::Compilation(ref err) =>
+                write!(f, "Shader compilation error, {}", err),
+            ShaderError::Linking(ref err) =>
+                write!(f, "Shader linking error, {}", err),
+            ShaderError::Lookup(ref err) =>
+                write!(f, "Shader lookup error, {}", err),
+        }
+    }
+}
+
+impl error::Error for ShaderError {
+    fn description(&self) -> &str {
+        match *self {
+            ShaderError::Compilation(ref err) => err,
+            ShaderError::Linking(ref err) => err,
+            ShaderError::Lookup(ref err) => err,
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
 
 pub struct ShaderProgram{
     program_id: GLuint,
 }
 
 impl ShaderProgram {
-    pub fn new(vrtx_src: &str, frag_src: &str) -> Result<ShaderProgram, String> {
+
+    pub fn new(vrtx_src: &str, frag_src: &str) -> Result<ShaderProgram, ShaderError> {
         unsafe {
             let vrtx_shader = compile_shader(vrtx_src, gl::VERTEX_SHADER)?;
             let frag_shader = compile_shader(frag_src, gl::FRAGMENT_SHADER)?;
@@ -77,12 +113,14 @@ impl ShaderProgram {
         }
     }
 
-    pub fn get_atrib_location(&self, name: &str) -> Result<GLuint, String> {
+    pub fn get_atrib_location(&self, name: &str) -> Result<GLuint, ShaderError> {
         let c_name = CString::new(name).unwrap();
         unsafe {
             let location = gl::GetAttribLocation(self.program_id, c_name.as_ptr());
             if location == -1 {
-                Err(format!("could not find attribute '{}'", name))
+                Err(ShaderError::Lookup(
+                    format!("'couldn't find attribute named '{}'", name)
+                ))
             } else {
                 Ok(location as GLuint)
             }
@@ -90,12 +128,14 @@ impl ShaderProgram {
     }
 
 
-    pub fn get_uniform_location(&self, name: &str) -> Result<GLint, String> {
+    pub fn get_uniform_location(&self, name: &str) -> Result<GLint, ShaderError> {
         let c_name = CString::new(name).unwrap();
         unsafe {
             let location = gl::GetUniformLocation(self.program_id, c_name.as_ptr());
             if location == -1 {
-                Err(format!("'{}' does not correspond to an active uniform variable", name))
+                Err(ShaderError::Lookup(
+                    format!("'couldn't find uniform named '{}'", name)
+                ))
             } else {
                 Ok(location)
             }
@@ -104,7 +144,7 @@ impl ShaderProgram {
 
 }
 
-unsafe fn compile_shader(src: &str, shader_type: GLenum) -> Result<GLuint, String> {
+unsafe fn compile_shader(src: &str, shader_type: GLenum) -> Result<GLuint, ShaderError> {
     let shader = gl::CreateShader(shader_type);
 
     // Attempt to compile shader
@@ -128,14 +168,14 @@ unsafe fn compile_shader(src: &str, shader_type: GLenum) -> Result<GLuint, Strin
                              ptr::null_mut(),
                              buf.as_mut_ptr() as *mut GLchar);
 
-        Err(String::from_utf8(buf)
-                   .expect("ShaderInfoLog not valid utf8"))
+        let err_msg = String::from_utf8(buf).expect("ProgramInfoLog not valid utf8");
+        Err(ShaderError::Compilation(err_msg))
     } else {
         Ok(shader)
     }
 }
 
-unsafe fn link_program(vrtx_shader: GLuint, frag_shader: GLuint)-> Result<GLuint, String> {
+unsafe fn link_program(vrtx_shader: GLuint, frag_shader: GLuint) -> Result<GLuint, ShaderError> {
     let program = gl::CreateProgram();
 
     gl::AttachShader(program, vrtx_shader);
@@ -160,8 +200,8 @@ unsafe fn link_program(vrtx_shader: GLuint, frag_shader: GLuint)-> Result<GLuint
                               ptr::null_mut(),
                               buf.as_mut_ptr() as *mut GLchar);
 
-        Err(String::from_utf8(buf)
-                   .expect("ProgramInfoLog not valid utf8"))
+        let err_msg = String::from_utf8(buf).expect("ProgramInfoLog not valid utf8");
+        Err(ShaderError::Linking(err_msg))
     } else {
         Ok(program)
     }

@@ -43,7 +43,6 @@ impl Renderer {
         }
     }
 
-    //TODO: Propigate errors properly
     pub fn init_gl_pipeline(&self) {
         let program = glx::ShaderProgram::new(VS_SRC, FS_SRC)
             .expect("Problem creating shader program");
@@ -76,6 +75,7 @@ impl Renderer {
                                     gl::FALSE,
                                     0,
                                     ptr::null());
+
             // Allow shader to specify point size
             gl::Enable(gl::PROGRAM_POINT_SIZE);
         }
