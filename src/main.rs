@@ -6,6 +6,7 @@ mod app;
 mod glx;
 mod render;
 mod fps;
+mod boids;
 
 use std::process;
 

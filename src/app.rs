@@ -14,6 +14,7 @@ use cgmath::Point2;
 use glx;
 use render::Renderer;
 use fps::FpsCounter;
+use boids::Simulation;
 
 const TITLE: &'static str = "rusty-boids";
 
@@ -85,17 +86,16 @@ impl BoidsApp {
         let mut events_loop = EventsLoop::new();
         let window = AppWindow::new(&events_loop)?;
         window.activate()?;
-        //TODO: Only print opengl info if debug is set
-        print_opengl_info();
         let (w, h) = window.get_size()?;
         let renderer = Renderer::new(w, h);
         let mut fps_counter = FpsCounter::new();
+        let mut simulation = Simulation::new();
         self.running = true ;
         while self.running {
             fps_counter.tick(|fps| window.display_fps(fps));
-            //TODO: Update simulation
+            simulation.update();
             events_loop.poll_events(|e| self.handle_event(e));
-            renderer.render();
+            renderer.render(simulation.positions());
             window.swap_buffers()?;
         }
         Ok(())
@@ -160,6 +160,8 @@ impl AppWindow {
             gl::load_with(|symbol| {
                 self.window.get_proc_address(symbol) as *const _
             });
+            //TODO: Only print opengl info if debug is set
+            print_opengl_info();
             Ok(())
     }
 
