@@ -1,5 +1,6 @@
 use std::fmt;
 use std::error;
+use std::time::{Duration, Instant};
 
 use gl;
 use glutin;
@@ -17,6 +18,7 @@ use fps::FpsCounter;
 use boids::Simulation;
 
 const TITLE: &'static str = "rusty-boids";
+const UPDATE_FPS_MS: u64 = 500;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -71,6 +73,8 @@ impl From<ContextError> for AppError {
 pub struct BoidsApp {
     running: bool,
     mouse_pos: Point2<f32>,
+    last_updated_fps: Instant,
+    last_shown_fps: u32,
 }
 
 impl BoidsApp {
@@ -78,6 +82,8 @@ impl BoidsApp {
         BoidsApp {
             running: false,
             mouse_pos: Point2::new(0.,0.),
+            last_shown_fps: 0,
+            last_updated_fps: Instant::now(),
         }
     }
 
@@ -88,16 +94,17 @@ impl BoidsApp {
         window.activate()?;
         let (w, h) = window.get_size()?;
         let renderer = Renderer::new(w, h);
-        let mut fps_counter = FpsCounter::new();
         let mut simulation = Simulation::new();
-        self.running = true ;
         renderer.init_gl_pipeline();
+        let mut fps_counter = FpsCounter::new();
+        self.running = true;
         while self.running {
-            fps_counter.tick(|fps| window.display_fps(fps));
             simulation.update();
             events_loop.poll_events(|e| self.handle_event(e));
             renderer.render(simulation.positions());
             window.swap_buffers()?;
+            fps_counter.tick();
+            self.update_fps(&window, fps_counter.current());
         }
         Ok(())
     }
@@ -127,6 +134,16 @@ impl BoidsApp {
             },
 
             _ => ()
+        }
+    }
+
+    fn update_fps(&mut self, window: &AppWindow, fps: u32) {
+        if self.last_updated_fps.elapsed() > Duration::from_millis(UPDATE_FPS_MS) {
+            self.last_updated_fps = Instant::now();
+            if fps != self.last_shown_fps {
+                window.display_fps(fps);
+                self.last_shown_fps = fps;
+            }
         }
     }
 
