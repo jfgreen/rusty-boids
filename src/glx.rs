@@ -9,9 +9,7 @@ use gl;
 use gl::types::*;
 use cgmath::Matrix3;
 
-// FIXME (maybe): Are the strings created here really static?
-
-pub fn get_gl_extensions() -> Vec<&'static str> {
+pub fn get_gl_extensions() -> Vec<String> {
     let mut results = vec![];
     for i in 0..get_gl_int(gl::NUM_EXTENSIONS) {
         results.push(get_gl_stri(gl::EXTENSIONS, i as u32));
@@ -25,17 +23,18 @@ pub fn get_gl_int(name: GLenum) -> i32 {
     i
 }
 
-pub fn get_gl_str(name: GLenum) -> &'static str {
+pub fn get_gl_str(name: GLenum) -> String {
     unsafe { read_gl_str(gl::GetString(name)) }
 }
 
-pub fn get_gl_stri(name: GLenum, i: GLuint) -> &'static str {
+pub fn get_gl_stri(name: GLenum, i: GLuint) -> String {
     unsafe { read_gl_str(gl::GetStringi(name, i)) }
 }
 
-unsafe fn read_gl_str(ptr: *const u8) -> &'static str {
+unsafe fn read_gl_str(ptr: *const u8) -> String {
     CStr::from_ptr(ptr as *const _)
         .to_str().expect("OpenGL returned invalid utf8")
+        .to_owned()
 }
 
 pub fn vtx_transform_2d(width: f32, height:f32) -> Matrix3<f32> {
