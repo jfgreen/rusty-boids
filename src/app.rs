@@ -92,16 +92,17 @@ impl BoidsApp {
         let mut events_loop = EventsLoop::new();
         let window = AppWindow::new(&events_loop)?;
         window.activate()?;
-        let (w, h) = window.get_size()?;
-        let renderer = Renderer::new(w, h);
-        let mut simulation = Simulation::new();
+        let size = window.get_size()?;
+        let renderer = Renderer::new(size);
+        let mut simulation = Simulation::new(size);
+        simulation.add_boids(100); //TODO: Parameterise / cli arg
         renderer.init_gl_pipeline();
         let mut fps_counter = FpsCounter::new();
         self.running = true;
         while self.running {
             simulation.update();
             events_loop.poll_events(|e| self.handle_event(e));
-            renderer.render(simulation.positions());
+            renderer.render(&simulation.positions());
             window.swap_buffers()?;
             fps_counter.tick();
             self.update_fps(&window, fps_counter.current());

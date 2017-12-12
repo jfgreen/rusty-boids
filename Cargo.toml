@@ -7,3 +7,4 @@ authors = ["James Green <jagreen@thoughtworks.com>"]
 gl = "0.6.2"
 glutin = "0.10.0"
 cgmath = "0.15.0"
+rand = "0.3.16"

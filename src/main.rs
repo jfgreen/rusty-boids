@@ -1,6 +1,7 @@
 extern crate glutin;
 extern crate gl;
 extern crate cgmath;
+extern crate rand;
 
 mod app;
 mod glx;

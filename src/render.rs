@@ -37,9 +37,9 @@ static FS_SRC: &'static str = "
 //TODO: How to run at different resolutions
 
 impl Renderer {
-    pub fn new(width: f32, height: f32) -> Renderer {
+    pub fn new(size: (f32, f32)) -> Renderer {
         Renderer {
-            transform: glx::vtx_transform_2d(width, height),
+            transform: glx::vtx_transform_2d(size.0, size.1),
         }
     }
 
@@ -96,5 +96,18 @@ impl Renderer {
             gl::DrawArrays(gl::POINTS, 0, points.len() as i32);
         }
     }
+
+    //TODO: Cleanup, something like:
+    /*
+    pub fn cleanup(&self) {
+        unsafe {
+            gl::DeleteProgram(self.program);
+            gl::DeleteShader(self.vtx_shader);
+            gl::DeleteShader(self.frag_shader);
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteVertexArrays(1, &self.vao);
+        }
+    }
+    */
 }
 
