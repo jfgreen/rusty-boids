@@ -1,14 +1,22 @@
 use std::f32::consts::PI;
 
-use cgmath::{Point2, Vector2};
+use cgmath::{Point2, Vector2, InnerSpace};
 use cgmath::{Basis2, Rad, Rotation, Rotation2};
 use rand::distributions::{IndependentSample, Range};
 use rand::ThreadRng;
 use rand;
 
-//TODO: Have some sort of control for max speed
+//TODO: Have some sort of control for these
 const MAX_SPEED: f32 = 2.0;
+const MAX_FORCE: f32 = 0.3;
+const SEP_WEIGHT: f32 = 1.5;
+const ALI_WEIGHT: f32 = 1.0;
+const COH_WEIGHT: f32 = 1.0;
+const SEP_RADIUS: f32 = 25.0;
+
 const TWO_PI: f32 = 2. * PI;
+
+//TODO: Maybe alias some types?
 
 struct Boid {
     position: Point2<f32>,
@@ -16,6 +24,13 @@ struct Boid {
 }
 
 impl Boid {
+    fn apply_force(&mut self, force: Vector2<f32>) {
+        //TODO: Limit velocity to MAX_SPEED
+        self.velocity += force;
+        self.position += self.velocity;
+    }
+
+    //TODO: Could we bounce, or halt instead of wrap
     fn wrap_to(&mut self, width: f32, height: f32) {
         if self.position.x < 0. { self.position.x = width };
         if self.position.y < 0. { self.position.y = height };
@@ -56,13 +71,39 @@ impl Simulation {
     //TODO: Introduce dt to smooth the simulation
     pub fn update(&mut self) {
         //TODO: Add boid behaviours
-        for b in &mut self.boids {
-            let mut force = Vector2::new(0., 0.,);
-            //TODO: Limit velocity to MAX_SPEED
-            b.velocity += force;
-            b.position += b.velocity;
-            //TODO: Could we bounce, or halt instead of wrap
-            b.wrap_to(self.width, self.height);
+        for i in 0..self.boids.len() {
+            let force = self.calculate_force(i);
+            self.apply_force(i, force);
+        }
+    }
+
+    fn calculate_force(&self, id: usize) -> Vector2<f32> {
+        let boid = &self.boids[id];
+        //TODO: Implement other forces, e.g mouse
+        self.react_to_neighbours(boid)
+    }
+
+    fn apply_force(&mut self, id: usize, force: Vector2<f32>) {
+        let boid = &mut self.boids[id];
+        boid.apply_force(force);
+        boid.wrap_to(self.width, self.height);
+    }
+
+    fn react_to_neighbours(&self, boid: &Boid) -> Vector2<f32> {
+        //TODO: Can we use magnitude squared instead to speed up things
+        let mut dodge = Vector2::new(0., 0.);
+        for i in 0..self.boids.len() {
+            let other = &self.boids[i];
+            let from_neighbour = boid.position - other.position;
+            let d = from_neighbour.magnitude();
+            if d > 0. && d < SEP_RADIUS {
+               dodge += from_neighbour.normalize_to(1./d);
+            }
+        }
+        if dodge.magnitude() > 0. {
+            steer(boid, dodge.normalize_to(MAX_SPEED))
+        } else {
+            Vector2::new(0., 0.)
         }
     }
 
@@ -92,6 +133,20 @@ impl Simulation {
         Basis2::from_angle(Rad(a))
             .rotate_vector(Vector2::new(0., s))
     }
+
 }
 
+
+fn steer(boid: &Boid, target_vel: Vector2<f32>) -> Vector2<f32> {
+    let force = target_vel - boid.velocity;
+    limit(force, MAX_FORCE)
+}
+
+fn limit(vec: Vector2<f32>, max: f32) -> Vector2<f32> {
+    if vec.magnitude2() > max*max {
+        vec.normalize_to(max)
+    } else {
+        vec
+    }
+}
 

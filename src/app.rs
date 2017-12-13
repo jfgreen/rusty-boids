@@ -88,6 +88,7 @@ impl BoidsApp {
     }
 
     //FIXME: Seems like vsync stops applying when window off screen
+    // ... so don't rely on it to limit fps
     pub fn run(&mut self) -> Result<(), AppError>{
         let mut events_loop = EventsLoop::new();
         let window = AppWindow::new(&events_loop)?;
@@ -123,8 +124,15 @@ impl BoidsApp {
                         virtual_keycode: Some(VirtualKeyCode::Escape), ..
                     }, ..
                 }, ..
+            } |
+            Event::WindowEvent {
+                event: WindowEvent::KeyboardInput {
+                    input: KeyboardInput {
+                        virtual_keycode: Some(VirtualKeyCode::Q), ..
+                    }, ..
+                }, ..
+                
             } => self.running = false,
-
             Event::WindowEvent {
                 event: WindowEvent::MouseMoved {
                     position: (x, y), ..
