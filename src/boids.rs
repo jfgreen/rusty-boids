@@ -7,12 +7,14 @@ use rand::ThreadRng;
 use rand;
 
 //TODO: Have some sort of control for these
+//Could have a config file, with a flag to reload on change
 const MAX_SPEED: f32 = 2.0;
 const MAX_FORCE: f32 = 0.3;
 const SEP_WEIGHT: f32 = 1.5;
 const ALI_WEIGHT: f32 = 1.0;
 const COH_WEIGHT: f32 = 1.0;
 const SEP_RADIUS: f32 = 25.0;
+const ALI_RADIUS: f32 = 50.0;
 
 const TWO_PI: f32 = 2. * PI;
 
@@ -72,15 +74,9 @@ impl Simulation {
     pub fn update(&mut self) {
         //TODO: Add boid behaviours
         for i in 0..self.boids.len() {
-            let force = self.calculate_force(i);
+            let force = self.react_to_neighbours(i);
             self.apply_force(i, force);
         }
-    }
-
-    fn calculate_force(&self, id: usize) -> Vector2<f32> {
-        let boid = &self.boids[id];
-        //TODO: Implement other forces, e.g mouse
-        self.react_to_neighbours(boid)
     }
 
     fn apply_force(&mut self, id: usize, force: Vector2<f32>) {
@@ -89,22 +85,39 @@ impl Simulation {
         boid.wrap_to(self.width, self.height);
     }
 
-    fn react_to_neighbours(&self, boid: &Boid) -> Vector2<f32> {
+    fn react_to_neighbours(&self, i: usize) -> Vector2<f32> {
         //TODO: Can we use magnitude squared instead to speed up things
+        let boid = &self.boids[i];
         let mut dodge = Vector2::new(0., 0.);
-        for i in 0..self.boids.len() {
-            let other = &self.boids[i];
-            let from_neighbour = boid.position - other.position;
-            let d = from_neighbour.magnitude();
-            if d > 0. && d < SEP_RADIUS {
-               dodge += from_neighbour.normalize_to(1./d);
+        let mut ali_vel_acc = Vector2::new(0., 0.); 
+        let mut ali_vel_count = 0;
+        for j in 0..self.boids.len() {
+            if i != j {
+                let other = &self.boids[j];
+                let from_neighbour = boid.position - other.position;
+                let d = from_neighbour.magnitude();
+                if d > 0. {
+                    if d < SEP_RADIUS {
+                       dodge += from_neighbour.normalize_to(1./d);
+                    }
+                    if d < ALI_RADIUS {
+                        ali_vel_acc += other.velocity;
+                        ali_vel_count += 1;
+                    }
+                }
             }
         }
+        let mut force = Vector2::new(0., 0.);
         if dodge.magnitude() > 0. {
-            steer(boid, dodge.normalize_to(MAX_SPEED))
-        } else {
-            Vector2::new(0., 0.)
+            let d_steer = steer(boid, dodge.normalize_to(MAX_SPEED));
+            force += SEP_WEIGHT * d_steer;
         }
+        if ali_vel_count > 0 {
+            let align = ali_vel_acc / ali_vel_count as f32;
+            let a_steer = steer(boid, align.normalize_to(MAX_SPEED));
+            force += ALI_WEIGHT * a_steer;
+        }
+        force
     }
 
     //TODO: Instead do this with zero copy somehow?
