@@ -19,15 +19,17 @@ const COH_RADIUS: f32 = 50.0;
 
 const TWO_PI: f32 = 2. * PI;
 
-//TODO: Maybe alias some types?
+type Position = Point2<f32>;
+type Velocity = Vector2<f32>;
+type Force = Vector2<f32>;
 
 struct Boid {
-    position: Point2<f32>,
-    velocity: Vector2<f32>,
+    position: Position,
+    velocity: Velocity,
 }
 
 impl Boid {
-    fn apply_force(&mut self, force: Vector2<f32>) {
+    fn apply_force(&mut self, force: Force) {
         self.velocity += force;
         self.velocity = limit(self.velocity, MAX_SPEED);
         self.position += self.velocity;
@@ -80,13 +82,14 @@ impl Simulation {
         }
     }
 
-    fn apply_force(&mut self, id: usize, force: Vector2<f32>) {
+    fn apply_force(&mut self, id: usize, force: Force) {
         let boid = &mut self.boids[id];
         boid.apply_force(force);
         boid.wrap_to(self.width, self.height);
     }
 
-    fn react_to_neighbours(&self, i: usize) -> Vector2<f32> {
+    //TODO: At some point, use spacial data structure
+    fn react_to_neighbours(&self, i: usize) -> Force {
         //TODO: Can we use magnitude squared instead to speed up things
         let boid = &self.boids[i];
         let mut dodge = Vector2::new(0., 0.);
@@ -139,13 +142,13 @@ impl Simulation {
     // Maybe just make renderer accept boids...
     // use two vertex atribs for vel and pos
     // do something pretty with vel...?
-    pub fn positions(&self) -> Vec<Point2<f32>> {
+    pub fn positions(&self) -> Vec<Position> {
         self.boids.iter()
             .map(|b| b.position)
             .collect()
     }
 
-    fn random_position(&mut self) -> Point2<f32> {
+    fn random_position(&mut self) -> Position {
         let sim_space_x = Range::new(0., self.width);
         let sim_space_y = Range::new(0., self.height);
         let x = sim_space_x.ind_sample(&mut self.rng);
@@ -153,7 +156,7 @@ impl Simulation {
         Point2::new(x, y)
     }
 
-    fn random_velocity(&mut self) -> Vector2<f32> {
+    fn random_velocity(&mut self) -> Velocity {
         let vel_space = Range::new(0., MAX_SPEED);
         let ang_space = Range::new(0., TWO_PI);
         let s = vel_space.ind_sample(&mut self.rng);
@@ -165,16 +168,16 @@ impl Simulation {
 }
 
 
-fn steer(boid: &Boid, target_vel: Vector2<f32>) -> Vector2<f32> {
+fn steer(boid: &Boid, target_vel: Velocity) -> Force {
     let force = target_vel - boid.velocity;
     limit(force, MAX_FORCE)
 }
 
-fn limit(vec: Vector2<f32>, max: f32) -> Vector2<f32> {
-    if vec.magnitude2() > max*max {
-        vec.normalize_to(max)
+fn limit(force: Force, max: f32) -> Force {
+    if force.magnitude2() > max*max {
+        force.normalize_to(max)
     } else {
-        vec
+        force
     }
 }
 
