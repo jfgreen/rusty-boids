@@ -9,12 +9,13 @@ use rand;
 //TODO: Have some sort of control for these
 //Could have a config file, with a flag to reload on change
 const MAX_SPEED: f32 = 2.0;
-const MAX_FORCE: f32 = 0.3;
+const MAX_FORCE: f32 = 0.1;
 const SEP_WEIGHT: f32 = 1.5;
 const ALI_WEIGHT: f32 = 1.0;
 const COH_WEIGHT: f32 = 1.0;
 const SEP_RADIUS: f32 = 25.0;
 const ALI_RADIUS: f32 = 50.0;
+const COH_RADIUS: f32 = 50.0;
 
 const TWO_PI: f32 = 2. * PI;
 
@@ -27,8 +28,8 @@ struct Boid {
 
 impl Boid {
     fn apply_force(&mut self, force: Vector2<f32>) {
-        //TODO: Limit velocity to MAX_SPEED
         self.velocity += force;
+        self.velocity = limit(self.velocity, MAX_SPEED);
         self.position += self.velocity;
     }
 
@@ -89,8 +90,10 @@ impl Simulation {
         //TODO: Can we use magnitude squared instead to speed up things
         let boid = &self.boids[i];
         let mut dodge = Vector2::new(0., 0.);
-        let mut ali_vel_acc = Vector2::new(0., 0.); 
+        let mut ali_vel_acc = Vector2::new(0., 0.);
         let mut ali_vel_count = 0;
+        let mut coh_pos_acc = Vector2::new(0., 0.);
+        let mut coh_pos_count = 0;
         for j in 0..self.boids.len() {
             if i != j {
                 let other = &self.boids[j];
@@ -98,11 +101,16 @@ impl Simulation {
                 let d = from_neighbour.magnitude();
                 if d > 0. {
                     if d < SEP_RADIUS {
-                       dodge += from_neighbour.normalize_to(1./d);
+                        dodge += from_neighbour.normalize_to(1./d);
                     }
                     if d < ALI_RADIUS {
                         ali_vel_acc += other.velocity;
                         ali_vel_count += 1;
+                    }
+                    if d < COH_RADIUS {
+                        coh_pos_acc.x += other.position.x;
+                        coh_pos_acc.y += other.position.y;
+                        coh_pos_count += 1;
                     }
                 }
             }
@@ -116,6 +124,13 @@ impl Simulation {
             let align = ali_vel_acc / ali_vel_count as f32;
             let a_steer = steer(boid, align.normalize_to(MAX_SPEED));
             force += ALI_WEIGHT * a_steer;
+        }
+        if coh_pos_count > 0 {
+            let avg_pos = coh_pos_acc / coh_pos_count as f32;
+            let boid_pos = Vector2::new(boid.position.x, boid.position.y);
+            let cohesion = avg_pos - boid_pos;
+            let c_steer = steer(boid, cohesion.normalize_to(MAX_SPEED));
+            force += COH_WEIGHT * c_steer;
         }
         force
     }
