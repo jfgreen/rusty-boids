@@ -17,12 +17,18 @@ const SEP_RADIUS: f32 = 25.0;
 const ALI_RADIUS: f32 = 50.0;
 const COH_RADIUS: f32 = 50.0;
 
+// Maintain squared versions to speed up calculation
+const SEP_RADIUS_2: f32 = SEP_RADIUS * SEP_RADIUS;
+const ALI_RADIUS_2: f32 = ALI_RADIUS * ALI_RADIUS;
+const COH_RADIUS_2: f32 = COH_RADIUS * COH_RADIUS;
+
 const TWO_PI: f32 = 2. * PI;
 
 type Position = Point2<f32>;
 type Velocity = Vector2<f32>;
 type Force = Vector2<f32>;
 
+//TODO: Use c representation
 struct Boid {
     position: Position,
     velocity: Velocity,
@@ -90,7 +96,6 @@ impl Simulation {
 
     //TODO: At some point, use spacial data structure
     fn react_to_neighbours(&self, i: usize) -> Force {
-        //TODO: Can we use magnitude squared instead to speed up things
         let boid = &self.boids[i];
         let mut dodge = Vector2::new(0., 0.);
         let mut ali_vel_acc = Vector2::new(0., 0.);
@@ -101,16 +106,17 @@ impl Simulation {
             if i != j {
                 let other = &self.boids[j];
                 let from_neighbour = boid.position - other.position;
-                let d = from_neighbour.magnitude();
-                if d > 0. {
-                    if d < SEP_RADIUS {
-                        dodge += from_neighbour.normalize_to(1./d);
+                let dist_squared = from_neighbour.magnitude2();
+                if dist_squared > 0. {
+                    if dist_squared < SEP_RADIUS_2 {
+                        let repulse = 1./dist_squared.sqrt();
+                        dodge += from_neighbour.normalize_to(repulse);
                     }
-                    if d < ALI_RADIUS {
+                    if dist_squared < ALI_RADIUS_2 {
                         ali_vel_acc += other.velocity;
                         ali_vel_count += 1;
                     }
-                    if d < COH_RADIUS {
+                    if dist_squared < COH_RADIUS_2 {
                         coh_pos_acc.x += other.position.x;
                         coh_pos_acc.y += other.position.y;
                         coh_pos_count += 1;
@@ -119,7 +125,7 @@ impl Simulation {
             }
         }
         let mut force = Vector2::new(0., 0.);
-        if dodge.magnitude() > 0. {
+        if dodge.magnitude2() > 0. {
             let d_steer = steer(boid, dodge.normalize_to(MAX_SPEED));
             force += SEP_WEIGHT * d_steer;
         }
