@@ -77,6 +77,8 @@ pub struct BoidsApp {
     last_shown_fps: u32,
 }
 
+//TODO: Add key for randomisation
+
 impl BoidsApp {
     pub fn new() -> Self {
         BoidsApp {
@@ -96,7 +98,7 @@ impl BoidsApp {
         let size = window.get_size()?;
         let renderer = Renderer::new(size);
         let mut simulation = Simulation::new(size);
-        simulation.add_boids(100); //TODO: Parameterise / cli arg
+        simulation.add_boids(2000); //TODO: Parameterise / cli arg
         renderer.init_gl_pipeline();
         let mut fps_counter = FpsCounter::new();
         self.running = true;
@@ -112,38 +114,46 @@ impl BoidsApp {
     }
 
     fn handle_event(&mut self, event: glutin::Event) {
-        use glutin::{Event, WindowEvent, KeyboardInput, VirtualKeyCode};
         match event {
+            glutin::Event::WindowEvent {
+                event: e, ..
+            } => self.handle_window_event(e),
+            _ => ()
+        }
+    }
 
-            Event::WindowEvent {
-                event: WindowEvent::Closed, ..
-            } |
-            Event::WindowEvent {
-                event: WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        virtual_keycode: Some(VirtualKeyCode::Escape), ..
-                    }, ..
+    fn handle_window_event(&mut self, event: glutin::WindowEvent) {
+        use glutin::{WindowEvent, KeyboardInput, ElementState};
+        match event {
+            WindowEvent::KeyboardInput {
+                input: KeyboardInput {
+                    state: ElementState::Pressed,
+                    virtual_keycode: Some(k), ..
                 }, ..
-            } |
-            Event::WindowEvent {
-                event: WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        virtual_keycode: Some(VirtualKeyCode::Q), ..
-                    }, ..
-                }, ..
-                
-            } => self.running = false,
-            Event::WindowEvent {
-                event: WindowEvent::MouseMoved {
-                    position: (x, y), ..
-                }, ..
-            } => {
-                self.mouse_pos.x = x as f32;
-                self.mouse_pos.y = y as f32;
-            },
+            } => self.handle_keypress(k),
+
+            WindowEvent::MouseMoved {
+                position: (x, y), ..
+            } => self.handle_mouse_move(x as f32, y as f32),
+
+            WindowEvent::Closed => self.stop(),
 
             _ => ()
         }
+    }
+
+    fn handle_keypress(&mut self, key: glutin::VirtualKeyCode) {
+        use glutin::VirtualKeyCode;
+        match key {
+            VirtualKeyCode::Escape | VirtualKeyCode::Q
+                => self.stop(),
+            _ => ()
+        }
+    }
+
+    fn handle_mouse_move(&mut self, x: f32, y:f32) {
+        self.mouse_pos.x = x as f32;
+        self.mouse_pos.y = y as f32;
     }
 
     fn update_fps(&mut self, window: &AppWindow, fps: u32) {
@@ -154,6 +164,10 @@ impl BoidsApp {
                 self.last_shown_fps = fps;
             }
         }
+    }
+
+    fn stop(&mut self) {
+        self.running = false
     }
 
 }

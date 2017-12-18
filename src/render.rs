@@ -19,7 +19,7 @@ static VS_SRC: &'static str = "
     uniform mat3 transform;
 
     void main() {
-        gl_PointSize = 5.0;
+        gl_PointSize = 3.0;
         gl_Position = vec4(transform * vec3(position, 1.0), 1.0);
     }";
 
