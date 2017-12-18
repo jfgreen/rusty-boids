@@ -78,10 +78,6 @@ pub struct BoidsApp {
     simulation: Simulation,
 }
 
-//TODO: Add key for randomisation
-//
-
-
 impl BoidsApp {
     pub fn new() -> Self {
         BoidsApp {
@@ -104,7 +100,7 @@ impl BoidsApp {
         let size = window.get_size()?;
         let renderer = Renderer::new(size);
         self.simulation.resize(size);
-        self.simulation.add_boids(2000); //TODO: Parameterise / cli arg
+        self.simulation.add_boids(1000); //TODO: Parameterise / cli arg
         renderer.init_gl_pipeline();
         let mut fps_counter = FpsCounter::new();
         self.running = true;
@@ -151,8 +147,10 @@ impl BoidsApp {
     fn handle_keypress(&mut self, key: glutin::VirtualKeyCode) {
         use glutin::VirtualKeyCode;
         match key {
-            VirtualKeyCode::Escape | VirtualKeyCode::Q
-                => self.stop(),
+            VirtualKeyCode::Escape | VirtualKeyCode::Q => self.stop(),
+            VirtualKeyCode::R => self.simulation.randomise(),
+            VirtualKeyCode::F => self.simulation.zeroise(),
+            VirtualKeyCode::C => self.simulation.centralise(),
             _ => ()
         }
     }

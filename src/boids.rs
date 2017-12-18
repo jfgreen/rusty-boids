@@ -84,9 +84,31 @@ impl Simulation {
         self.height = size.1;
     }
 
+
+    pub fn randomise(&mut self) {
+        for i in 0..self.boids.len() {
+           self.boids[i].position = self.random_position();
+           self.boids[i].velocity = self.random_velocity();
+        }
+    }
+
+    pub fn centralise(&mut self) {
+        let center = Point2::new(self.width/2., self.height/2.);
+        for i in 0..self.boids.len() {
+           self.boids[i].position = center;
+           self.boids[i].velocity = self.random_velocity();
+        }
+    }
+
+    pub fn zeroise(&mut self) {
+        for i in 0..self.boids.len() {
+           self.boids[i].position = Point2::new(0., 0.);
+           self.boids[i].velocity = self.random_velocity();
+        }
+    }
+
     //TODO: Introduce dt to smooth the simulation
     pub fn update(&mut self) {
-        //TODO: Add boid behaviours
         for i in 0..self.boids.len() {
             let force = self.react_to_neighbours(i);
             self.apply_force(i, force);
