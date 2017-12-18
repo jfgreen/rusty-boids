@@ -28,7 +28,7 @@ type Position = Point2<f32>;
 type Velocity = Vector2<f32>;
 type Force = Vector2<f32>;
 
-//TODO: Use c representation
+#[repr(C)]
 struct Boid {
     position: Position,
     velocity: Velocity,
