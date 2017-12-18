@@ -79,6 +79,11 @@ impl Simulation {
 
     }
 
+    pub fn resize(&mut self, size: (f32, f32)) {
+        self.width = size.0;
+        self.height = size.1;
+    }
+
     //TODO: Introduce dt to smooth the simulation
     pub fn update(&mut self) {
         //TODO: Add boid behaviours

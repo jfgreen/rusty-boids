@@ -75,9 +75,12 @@ pub struct BoidsApp {
     mouse_pos: Point2<f32>,
     last_updated_fps: Instant,
     last_shown_fps: u32,
+    simulation: Simulation,
 }
 
 //TODO: Add key for randomisation
+//
+
 
 impl BoidsApp {
     pub fn new() -> Self {
@@ -86,6 +89,9 @@ impl BoidsApp {
             mouse_pos: Point2::new(0.,0.),
             last_shown_fps: 0,
             last_updated_fps: Instant::now(),
+            //TODO: Can we do better than zero sized as initial?
+            //Maybe get the relevant part of window construction up here ?
+            simulation: Simulation::new((0., 0.)),
         }
     }
 
@@ -97,15 +103,15 @@ impl BoidsApp {
         window.activate()?;
         let size = window.get_size()?;
         let renderer = Renderer::new(size);
-        let mut simulation = Simulation::new(size);
-        simulation.add_boids(2000); //TODO: Parameterise / cli arg
+        self.simulation.resize(size);
+        self.simulation.add_boids(2000); //TODO: Parameterise / cli arg
         renderer.init_gl_pipeline();
         let mut fps_counter = FpsCounter::new();
         self.running = true;
         while self.running {
-            simulation.update();
+            self.simulation.update();
             events_loop.poll_events(|e| self.handle_event(e));
-            renderer.render(&simulation.positions());
+            renderer.render(&self.simulation.positions());
             window.swap_buffers()?;
             fps_counter.tick();
             self.update_fps(&window, fps_counter.current());
