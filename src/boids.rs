@@ -1,216 +1,239 @@
-use std::f32::consts::PI;
+use std::time::{Duration, Instant};
+use std::fmt;
+use std::error;
 
-use cgmath::{Point2, Vector2, InnerSpace};
-use cgmath::{Basis2, Rad, Rotation, Rotation2};
-use rand::distributions::{IndependentSample, Range};
-use rand::ThreadRng;
-use rand;
+use gl;
+use glutin;
+use glutin::{
+    GlRequest, Api, GlProfile,
+    CreationError, ContextError,
+    EventsLoop, WindowBuilder, ContextBuilder,
+    GlWindow, GlContext
+};
+use cgmath::Point2;
 
-//TODO: Have some sort of control for these
-//Could have a config file, with a flag to reload on change
-const MAX_SPEED: f32 = 2.0;
-const MAX_FORCE: f32 = 0.1;
-const SEP_WEIGHT: f32 = 1.5;
-const ALI_WEIGHT: f32 = 1.0;
-const COH_WEIGHT: f32 = 1.0;
-const SEP_RADIUS: f32 = 25.0;
-const ALI_RADIUS: f32 = 50.0;
-const COH_RADIUS: f32 = 50.0;
+use glx;
+use render::Renderer;
+use fps::FpsCounter;
+use system::FlockingSystem;
 
-// Maintain squared versions to speed up calculation
-const SEP_RADIUS_2: f32 = SEP_RADIUS * SEP_RADIUS;
-const ALI_RADIUS_2: f32 = ALI_RADIUS * ALI_RADIUS;
-const COH_RADIUS_2: f32 = COH_RADIUS * COH_RADIUS;
+const TITLE: &'static str = "rusty-boids";
+const UPDATE_FPS_MS: u64 = 500;
 
-const TWO_PI: f32 = 2. * PI;
-
-type Position = Point2<f32>;
-type Velocity = Vector2<f32>;
-type Force = Vector2<f32>;
-
-#[repr(C)]
-struct Boid {
-    position: Position,
-    velocity: Velocity,
+#[derive(Debug)]
+pub enum SimulatorError {
+    GlCreation(CreationError),
+    GlContext(ContextError),
+    Window(String),
 }
 
-impl Boid {
-    fn apply_force(&mut self, force: Force) {
-        self.velocity += force;
-        self.velocity = limit(self.velocity, MAX_SPEED);
-        self.position += self.velocity;
-    }
-
-    //TODO: Could we bounce, or halt instead of wrap
-    fn wrap_to(&mut self, width: f32, height: f32) {
-        if self.position.x < 0. { self.position.x = width };
-        if self.position.y < 0. { self.position.y = height };
-        if self.position.x > width { self.position.x = 0. };
-        if self.position.y > height { self.position.y = 0. };
+impl fmt::Display for SimulatorError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SimulatorError::GlCreation(ref err) =>
+                write!(f, "GL creation error, {}", err),
+            SimulatorError::GlContext(ref err) =>
+                write!(f, "GL context error, {}", err),
+            SimulatorError::Window(ref err) =>
+                write!(f, "Window error, {}", err),
+        }
     }
 }
 
-pub struct Simulation {
-    boids: Vec<Boid>,
-    width: f32,
-    height: f32,
-    rng: ThreadRng,
+impl error::Error for SimulatorError {
+    fn description(&self) -> &str {
+        match *self {
+            SimulatorError::GlCreation(ref err) => err.description(),
+            SimulatorError::GlContext(ref err) => err.description(),
+            SimulatorError::Window(ref err) => err,
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            SimulatorError::GlCreation(ref err) => Some(err),
+            SimulatorError::GlContext(ref err) => Some(err),
+            SimulatorError::Window(..) => None,
+        }
+    }
 }
 
-impl Simulation {
-    pub fn new(size: (f32, f32)) -> Simulation {
-        Simulation {
-            boids: vec![],
-            width: size.0,
-            height: size.1,
-            rng: rand::thread_rng(),
+impl From<CreationError> for SimulatorError {
+    fn from(err: CreationError) -> SimulatorError {
+        SimulatorError::GlCreation(err)
+    }
+}
+
+impl From<ContextError> for SimulatorError {
+    fn from(err: ContextError) -> SimulatorError {
+        SimulatorError::GlContext(err)
+    }
+}
+
+pub struct BoidSimulator {
+    running: bool,
+    mouse_pos: Point2<f32>,
+    last_updated_fps: Instant,
+    last_shown_fps: u32,
+    simulation: FlockingSystem,
+}
+
+//TODO: Get useful parts of this into the window somehow... e.g mouse handling
+impl BoidSimulator {
+    pub fn new() -> Self {
+        BoidSimulator {
+            running: false,
+            mouse_pos: Point2::new(0.,0.),
+            last_shown_fps: 0,
+            last_updated_fps: Instant::now(),
+            //TODO: Can we do better than zero sized as initial?
+            //Maybe get the relevant part of window construction up here ?
+            simulation: FlockingSystem::new((0., 0.)),
         }
     }
 
-    pub fn add_boids(&mut self, count: usize) {
-        for _ in 0..count {
-            let pos = self.random_position();
-            let vel = self.random_velocity();
-            self.boids.push(Boid{
-                position: pos,
-                velocity: vel,
-            });
+    //FIXME: Seems like vsync stops applying when window off screen
+    // ... so don't rely on it to limit fps
+    pub fn run(&mut self) -> Result<(), SimulatorError>{
+        let mut events_loop = EventsLoop::new();
+        let window = SimulatorWindow::new(&events_loop)?;
+        window.activate()?;
+        let size = window.get_size()?;
+        let renderer = Renderer::new(size);
+        self.simulation.resize(size);
+        self.simulation.add_boids(1000); //TODO: Parameterise / cli arg
+        renderer.init_gl_pipeline();
+        let mut fps_counter = FpsCounter::new();
+        self.running = true;
+        while self.running {
+            self.simulation.update();
+            events_loop.poll_events(|e| self.handle_event(e));
+            renderer.render(&self.simulation.positions());
+            window.swap_buffers()?;
+            fps_counter.tick();
+            self.update_fps(&window, fps_counter.current());
         }
-
+        Ok(())
     }
 
-    pub fn resize(&mut self, size: (f32, f32)) {
-        self.width = size.0;
-        self.height = size.1;
-    }
-
-
-    pub fn randomise(&mut self) {
-        for i in 0..self.boids.len() {
-           self.boids[i].position = self.random_position();
-           self.boids[i].velocity = self.random_velocity();
-        }
-    }
-
-    pub fn centralise(&mut self) {
-        let center = Point2::new(self.width/2., self.height/2.);
-        for i in 0..self.boids.len() {
-           self.boids[i].position = center;
-           self.boids[i].velocity = self.random_velocity();
-        }
-    }
-
-    pub fn zeroise(&mut self) {
-        for i in 0..self.boids.len() {
-           self.boids[i].position = Point2::new(0., 0.);
-           self.boids[i].velocity = self.random_velocity();
+    fn handle_event(&mut self, event: glutin::Event) {
+        match event {
+            glutin::Event::WindowEvent {
+                event: e, ..
+            } => self.handle_window_event(e),
+            _ => ()
         }
     }
 
-    //TODO: Introduce dt to smooth the simulation
-    pub fn update(&mut self) {
-        for i in 0..self.boids.len() {
-            let force = self.react_to_neighbours(i);
-            self.apply_force(i, force);
+    fn handle_window_event(&mut self, event: glutin::WindowEvent) {
+        use glutin::{WindowEvent, KeyboardInput, ElementState};
+        match event {
+            WindowEvent::KeyboardInput {
+                input: KeyboardInput {
+                    state: ElementState::Pressed,
+                    virtual_keycode: Some(k), ..
+                }, ..
+            } => self.handle_keypress(k),
+
+            WindowEvent::MouseMoved {
+                position: (x, y), ..
+            } => self.handle_mouse_move(x as f32, y as f32),
+
+            WindowEvent::Closed => self.stop(),
+
+            _ => ()
         }
     }
 
-    fn apply_force(&mut self, id: usize, force: Force) {
-        let boid = &mut self.boids[id];
-        boid.apply_force(force);
-        boid.wrap_to(self.width, self.height);
+    fn handle_keypress(&mut self, key: glutin::VirtualKeyCode) {
+        use glutin::VirtualKeyCode;
+        match key {
+            VirtualKeyCode::Escape | VirtualKeyCode::Q => self.stop(),
+            VirtualKeyCode::R => self.simulation.randomise(),
+            VirtualKeyCode::F => self.simulation.zeroise(),
+            VirtualKeyCode::C => self.simulation.centralise(),
+            _ => ()
+        }
     }
 
-    //TODO: At some point, use spacial data structure
-    fn react_to_neighbours(&self, i: usize) -> Force {
-        let boid = &self.boids[i];
-        let mut dodge = Vector2::new(0., 0.);
-        let mut ali_vel_acc = Vector2::new(0., 0.);
-        let mut ali_vel_count = 0;
-        let mut coh_pos_acc = Vector2::new(0., 0.);
-        let mut coh_pos_count = 0;
-        for j in 0..self.boids.len() {
-            if i != j {
-                let other = &self.boids[j];
-                let from_neighbour = boid.position - other.position;
-                let dist_squared = from_neighbour.magnitude2();
-                if dist_squared > 0. {
-                    if dist_squared < SEP_RADIUS_2 {
-                        let repulse = 1./dist_squared.sqrt();
-                        dodge += from_neighbour.normalize_to(repulse);
-                    }
-                    if dist_squared < ALI_RADIUS_2 {
-                        ali_vel_acc += other.velocity;
-                        ali_vel_count += 1;
-                    }
-                    if dist_squared < COH_RADIUS_2 {
-                        coh_pos_acc.x += other.position.x;
-                        coh_pos_acc.y += other.position.y;
-                        coh_pos_count += 1;
-                    }
-                }
+    fn handle_mouse_move(&mut self, x: f32, y:f32) {
+        self.mouse_pos.x = x as f32;
+        self.mouse_pos.y = y as f32;
+    }
+
+    fn update_fps(&mut self, window: &SimulatorWindow, fps: u32) {
+        let since_last_update = self.last_updated_fps.elapsed();
+        let update_interval = Duration::from_millis(UPDATE_FPS_MS);
+        if since_last_update > update_interval {
+            self.last_updated_fps = Instant::now();
+            if fps != self.last_shown_fps {
+                window.display_fps(fps);
+                self.last_shown_fps = fps;
             }
         }
-        let mut force = Vector2::new(0., 0.);
-        if dodge.magnitude2() > 0. {
-            let d_steer = steer(boid, dodge.normalize_to(MAX_SPEED));
-            force += SEP_WEIGHT * d_steer;
-        }
-        if ali_vel_count > 0 {
-            let align = ali_vel_acc / ali_vel_count as f32;
-            let a_steer = steer(boid, align.normalize_to(MAX_SPEED));
-            force += ALI_WEIGHT * a_steer;
-        }
-        if coh_pos_count > 0 {
-            let avg_pos = coh_pos_acc / coh_pos_count as f32;
-            let boid_pos = Vector2::new(boid.position.x, boid.position.y);
-            let cohesion = avg_pos - boid_pos;
-            let c_steer = steer(boid, cohesion.normalize_to(MAX_SPEED));
-            force += COH_WEIGHT * c_steer;
-        }
-        force
     }
 
-    //TODO: Instead do this with zero copy somehow?
-    // Maybe just make renderer accept boids...
-    // use two vertex atribs for vel and pos
-    // do something pretty with vel...?
-    pub fn positions(&self) -> Vec<Position> {
-        self.boids.iter()
-            .map(|b| b.position)
-            .collect()
-    }
-
-    fn random_position(&mut self) -> Position {
-        let sim_space_x = Range::new(0., self.width);
-        let sim_space_y = Range::new(0., self.height);
-        let x = sim_space_x.ind_sample(&mut self.rng);
-        let y = sim_space_y.ind_sample(&mut self.rng);
-        Point2::new(x, y)
-    }
-
-    fn random_velocity(&mut self) -> Velocity {
-        let vel_space = Range::new(0., MAX_SPEED);
-        let ang_space = Range::new(0., TWO_PI);
-        let s = vel_space.ind_sample(&mut self.rng);
-        let a = ang_space.ind_sample(&mut self.rng);
-        Basis2::from_angle(Rad(a))
-            .rotate_vector(Vector2::new(0., s))
+    fn stop(&mut self) {
+        self.running = false
     }
 
 }
 
-
-fn steer(boid: &Boid, target_vel: Velocity) -> Force {
-    let force = target_vel - boid.velocity;
-    limit(force, MAX_FORCE)
+struct SimulatorWindow {
+    window: GlWindow,
 }
 
-fn limit(force: Force, max: f32) -> Force {
-    if force.magnitude2() > max*max {
-        force.normalize_to(max)
-    } else {
-        force
+impl SimulatorWindow {
+    fn new(events_loop: &EventsLoop) -> Result<SimulatorWindow, SimulatorError> {
+        //TODO: Pass in size & fullscreen settings via CLI
+        //let monitor = events_loop.get_primary_monitor();
+        let window_builder = WindowBuilder::new()
+            .with_title(TITLE)
+            .with_dimensions(800, 800);
+            //.with_fullscreen(monitor));
+        let context_builder = ContextBuilder::new()
+            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
+            .with_gl_profile(GlProfile::Core)
+            .with_vsync(true);
+        Ok(SimulatorWindow{window: GlWindow::new(
+            window_builder,
+            context_builder,
+            events_loop
+        )?})
     }
+
+    fn activate(&self) -> Result<(), SimulatorError> {
+            unsafe { self.window.make_current()?; }
+            gl::load_with(|symbol| {
+                self.window.get_proc_address(symbol) as *const _
+            });
+            //TODO: Only print opengl info if debug is set
+            print_opengl_info();
+            Ok(())
+    }
+
+    fn swap_buffers(&self) -> Result<(), SimulatorError> {
+        self.window.swap_buffers()?;
+        Ok(())
+    }
+
+    fn get_size(&self) -> Result<(f32, f32), SimulatorError> {
+        self.window.get_inner_size_points()
+            .map(|(w, h)| (w as f32, h as f32))
+            .ok_or(SimulatorError::Window(
+                    "Tried to get size of closed window".to_string()))
+    }
+
+    fn display_fps(&self, fps: u32) {
+        self.window.set_title(&format!("{} - {} fps", TITLE, fps));
+    }
+}
+
+fn print_opengl_info() {
+    println!("Vendor: {}", glx::get_gl_str(gl::VENDOR));
+    println!("Renderer: {}", glx::get_gl_str(gl::RENDERER));
+    println!("Version: {}", glx::get_gl_str(gl::VERSION));
+    println!("GLSL version: {}", glx::get_gl_str(gl::SHADING_LANGUAGE_VERSION));
+    println!("Extensions: {}", glx::get_gl_extensions().join(","));
 }
 
