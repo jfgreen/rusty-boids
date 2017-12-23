@@ -1,6 +1,37 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const NUM_SAMPLES: usize = 20;
+
+pub struct CachedFpsCounter {
+    counter: FpsCounter,
+    last_updated_fps: Instant,
+    cache_interval: Duration,
+    last_shown_fps: u32,
+}
+
+impl CachedFpsCounter {
+    pub fn new(cache_ms: u64) -> CachedFpsCounter {
+        CachedFpsCounter {
+            counter: FpsCounter::new(),
+            last_updated_fps: Instant::now(),
+            cache_interval: Duration::from_millis(cache_ms),
+            last_shown_fps: 0,
+        }
+    }
+
+    pub fn tick<F>(&mut self, callback: F) where F: Fn(u32) {
+        self.counter.tick();
+        let since_last_update = self.last_updated_fps.elapsed();
+        if since_last_update > self.cache_interval {
+            self.last_updated_fps = Instant::now();
+            let fps = self.counter.current();
+            if fps != self.last_shown_fps {
+                self.last_shown_fps = fps;
+                callback(fps);
+            }
+        }
+    }
+}
 
 pub struct FpsCounter {
     last_sampled: Instant,

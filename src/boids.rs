@@ -1,4 +1,3 @@
-use std::time::{Duration, Instant};
 use std::fmt;
 use std::error;
 
@@ -14,11 +13,11 @@ use cgmath::Point2;
 
 use glx;
 use render::Renderer;
-use fps::FpsCounter;
+use fps::CachedFpsCounter;
 use system::FlockingSystem;
 
 const TITLE: &'static str = "rusty-boids";
-const UPDATE_FPS_MS: u64 = 500;
+const CACHE_FPS_MS: u64 = 500;
 
 #[derive(Debug)]
 pub enum SimulatorError {
@@ -73,19 +72,16 @@ impl From<ContextError> for SimulatorError {
 pub struct BoidSimulator {
     running: bool,
     mouse_pos: Point2<f32>,
-    last_updated_fps: Instant,
-    last_shown_fps: u32,
     simulation: FlockingSystem,
 }
 
 //TODO: Get useful parts of this into the window somehow... e.g mouse handling
 impl BoidSimulator {
+
     pub fn new() -> Self {
         BoidSimulator {
             running: false,
             mouse_pos: Point2::new(0.,0.),
-            last_shown_fps: 0,
-            last_updated_fps: Instant::now(),
             //TODO: Can we do better than zero sized as initial?
             //Maybe get the relevant part of window construction up here ?
             simulation: FlockingSystem::new((0., 0.)),
@@ -94,7 +90,7 @@ impl BoidSimulator {
 
     //FIXME: Seems like vsync stops applying when window off screen
     // ... so don't rely on it to limit fps
-    pub fn run(&mut self) -> Result<(), SimulatorError>{
+    pub fn run(&mut self) -> Result<(), SimulatorError> {
         let mut events_loop = EventsLoop::new();
         let window = SimulatorWindow::new(&events_loop)?;
         window.activate()?;
@@ -103,16 +99,16 @@ impl BoidSimulator {
         self.simulation.resize(size);
         self.simulation.add_boids(1000); //TODO: Parameterise / cli arg
         renderer.init_gl_pipeline();
-        let mut fps_counter = FpsCounter::new();
+        let mut fps_counter = CachedFpsCounter::new(CACHE_FPS_MS);
         self.running = true;
         while self.running {
             self.simulation.update();
             events_loop.poll_events(|e| self.handle_event(e));
             renderer.render(&self.simulation.positions());
             window.swap_buffers()?;
-            fps_counter.tick();
-            self.update_fps(&window, fps_counter.current());
+            fps_counter.tick(|fps| window.display_fps(fps));
         }
+        //TODO: Renderer/window tidy up
         Ok(())
     }
 
@@ -159,18 +155,6 @@ impl BoidSimulator {
     fn handle_mouse_move(&mut self, x: f32, y:f32) {
         self.mouse_pos.x = x as f32;
         self.mouse_pos.y = y as f32;
-    }
-
-    fn update_fps(&mut self, window: &SimulatorWindow, fps: u32) {
-        let since_last_update = self.last_updated_fps.elapsed();
-        let update_interval = Duration::from_millis(UPDATE_FPS_MS);
-        if since_last_update > update_interval {
-            self.last_updated_fps = Instant::now();
-            if fps != self.last_shown_fps {
-                window.display_fps(fps);
-                self.last_shown_fps = fps;
-            }
-        }
     }
 
     fn stop(&mut self) {
