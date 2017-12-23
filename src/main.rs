@@ -13,8 +13,7 @@ mod system;
 use std::process;
 
 fn main() {
-    let mut boids = boids::BoidSimulator::new();
-    boids.run().unwrap_or_else(|err| {
+    boids::run_simulation().unwrap_or_else(|err| {
         println!("Problem running simulation, {}", err);
         process::exit(1);
     });

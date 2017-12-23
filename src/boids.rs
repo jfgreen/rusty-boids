@@ -7,9 +7,9 @@ use glutin::{
     GlRequest, Api, GlProfile,
     CreationError, ContextError,
     EventsLoop, WindowBuilder, ContextBuilder,
-    GlWindow, GlContext
+    GlWindow, GlContext,
+    VirtualKeyCode,
 };
-use cgmath::Point2;
 
 use glx;
 use render::Renderer;
@@ -18,6 +18,7 @@ use system::FlockingSystem;
 
 const TITLE: &'static str = "rusty-boids";
 const CACHE_FPS_MS: u64 = 500;
+
 
 #[derive(Debug)]
 pub enum SimulatorError {
@@ -69,99 +70,80 @@ impl From<ContextError> for SimulatorError {
     }
 }
 
-pub struct BoidSimulator {
-    running: bool,
-    mouse_pos: Point2<f32>,
-    simulation: FlockingSystem,
+pub fn run_simulation() -> Result<(), SimulatorError> {
+    let mut events_loop = EventsLoop::new();
+    let window = SimulatorWindow::new(&events_loop)?;
+    window.activate()?;
+    let size = window.get_size()?;
+    let mut simulation = FlockingSystem::new(size);
+    simulation.add_boids(1000); //TODO: Parameterise / cli arg
+    let renderer = Renderer::new(size);
+    renderer.init_gl_pipeline();
+    let mut fps_counter = CachedFpsCounter::new(CACHE_FPS_MS);
+    let mut running = true;
+    while running {
+        simulation.update();
+        events_loop.poll_events(|e| match process_event(e) {
+            Some(ControlEvent::Stop)   => running = false,
+            Some(ControlEvent::Key(k)) => handle_key(k, &mut simulation),
+            _ => ()
+        });
+        renderer.render(&simulation.positions());
+        window.swap_buffers()?;
+        fps_counter.tick(|fps| window.display_fps(fps));
+    }
+    Ok(())
 }
 
-//TODO: Get useful parts of this into the window somehow... e.g mouse handling
-impl BoidSimulator {
-
-    pub fn new() -> Self {
-        BoidSimulator {
-            running: false,
-            mouse_pos: Point2::new(0.,0.),
-            //TODO: Can we do better than zero sized as initial?
-            //Maybe get the relevant part of window construction up here ?
-            simulation: FlockingSystem::new((0., 0.)),
-        }
+fn handle_key(key: VirtualKeyCode, simulation: &mut FlockingSystem) {
+    match key {
+        VirtualKeyCode::R => simulation.randomise(),
+        VirtualKeyCode::F => simulation.zeroise(),
+        VirtualKeyCode::C => simulation.centralise(),
+        _ => ()
     }
-
-    //FIXME: Seems like vsync stops applying when window off screen
-    // ... so don't rely on it to limit fps
-    pub fn run(&mut self) -> Result<(), SimulatorError> {
-        let mut events_loop = EventsLoop::new();
-        let window = SimulatorWindow::new(&events_loop)?;
-        window.activate()?;
-        let size = window.get_size()?;
-        let renderer = Renderer::new(size);
-        self.simulation.resize(size);
-        self.simulation.add_boids(1000); //TODO: Parameterise / cli arg
-        renderer.init_gl_pipeline();
-        let mut fps_counter = CachedFpsCounter::new(CACHE_FPS_MS);
-        self.running = true;
-        while self.running {
-            self.simulation.update();
-            events_loop.poll_events(|e| self.handle_event(e));
-            renderer.render(&self.simulation.positions());
-            window.swap_buffers()?;
-            fps_counter.tick(|fps| window.display_fps(fps));
-        }
-        //TODO: Renderer/window tidy up
-        Ok(())
-    }
-
-    fn handle_event(&mut self, event: glutin::Event) {
-        match event {
-            glutin::Event::WindowEvent {
-                event: e, ..
-            } => self.handle_window_event(e),
-            _ => ()
-        }
-    }
-
-    fn handle_window_event(&mut self, event: glutin::WindowEvent) {
-        use glutin::{WindowEvent, KeyboardInput, ElementState};
-        match event {
-            WindowEvent::KeyboardInput {
-                input: KeyboardInput {
-                    state: ElementState::Pressed,
-                    virtual_keycode: Some(k), ..
-                }, ..
-            } => self.handle_keypress(k),
-
-            WindowEvent::MouseMoved {
-                position: (x, y), ..
-            } => self.handle_mouse_move(x as f32, y as f32),
-
-            WindowEvent::Closed => self.stop(),
-
-            _ => ()
-        }
-    }
-
-    fn handle_keypress(&mut self, key: glutin::VirtualKeyCode) {
-        use glutin::VirtualKeyCode;
-        match key {
-            VirtualKeyCode::Escape | VirtualKeyCode::Q => self.stop(),
-            VirtualKeyCode::R => self.simulation.randomise(),
-            VirtualKeyCode::F => self.simulation.zeroise(),
-            VirtualKeyCode::C => self.simulation.centralise(),
-            _ => ()
-        }
-    }
-
-    fn handle_mouse_move(&mut self, x: f32, y:f32) {
-        self.mouse_pos.x = x as f32;
-        self.mouse_pos.y = y as f32;
-    }
-
-    fn stop(&mut self) {
-        self.running = false
-    }
-
 }
+
+enum ControlEvent {
+    Stop,
+    Key(VirtualKeyCode),
+}
+
+fn process_event(event: glutin::Event) -> Option<ControlEvent> {
+    match event {
+        glutin::Event::WindowEvent {
+            event: e, ..
+        } => process_window_event(e),
+        _ => None
+    }
+}
+
+fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
+    use glutin::{WindowEvent, KeyboardInput, ElementState};
+    match event {
+        WindowEvent::KeyboardInput {
+            input: KeyboardInput {
+                state: ElementState::Pressed,
+                virtual_keycode: Some(k), ..
+            }, ..
+        } => process_keypress(k),
+
+        //WindowEvent::MouseMoved {
+        //    position: (x, y), ..
+        //} => self.handle_mouse_move(x as f32, y as f32),
+
+        WindowEvent::Closed => Some(ControlEvent::Stop),
+        _ => None
+    }
+}
+
+fn process_keypress(key: VirtualKeyCode) -> Option<ControlEvent> {
+    match key {
+        VirtualKeyCode::Escape | VirtualKeyCode::Q => Some(ControlEvent::Stop),
+        _ => Some(ControlEvent::Key(key)),
+    }
+}
+
 
 struct SimulatorWindow {
     window: GlWindow,
