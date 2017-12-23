@@ -72,30 +72,33 @@ impl From<ContextError> for SimulatorError {
 
 pub fn run_simulation() -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
-    let window = SimulatorWindow::new(&events_loop)?;
-    window.activate()?;
-    let size = window.get_size()?;
+    let window = build_window(&events_loop)?;
+    gl_init(&window)?;
+    let size = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(size);
     simulation.add_boids(1000); //TODO: Parameterise / cli arg
     let renderer = Renderer::new(size);
-    renderer.init_gl_pipeline();
+    renderer.init_pipeline();
     let mut fps_counter = CachedFpsCounter::new(CACHE_FPS_MS);
     let mut running = true;
     while running {
         simulation.update();
         events_loop.poll_events(|e| match process_event(e) {
             Some(ControlEvent::Stop)   => running = false,
-            Some(ControlEvent::Key(k)) => handle_key(k, &mut simulation),
+            Some(ControlEvent::Key(k)) => handle_key(&mut simulation, k),
             _ => ()
         });
         renderer.render(&simulation.positions());
         window.swap_buffers()?;
-        fps_counter.tick(|fps| window.display_fps(fps));
+        fps_counter.tick(|fps| {
+            let title = format!("{} - {} fps", TITLE, fps);
+            window.set_title(&title);
+        });
     }
     Ok(())
 }
 
-fn handle_key(key: VirtualKeyCode, simulation: &mut FlockingSystem) {
+fn handle_key(simulation: &mut FlockingSystem, key: VirtualKeyCode) {
     match key {
         VirtualKeyCode::R => simulation.randomise(),
         VirtualKeyCode::F => simulation.zeroise(),
@@ -144,55 +147,39 @@ fn process_keypress(key: VirtualKeyCode) -> Option<ControlEvent> {
     }
 }
 
-
-struct SimulatorWindow {
-    window: GlWindow,
+fn build_window(events_loop: &EventsLoop) -> Result<GlWindow, SimulatorError> {
+    //TODO: Pass in size & fullscreen settings via CLI
+    //let monitor = events_loop.get_primary_monitor();
+    let window_builder = WindowBuilder::new()
+        .with_title(TITLE)
+        .with_dimensions(800, 800);
+        //.with_fullscreen(monitor));
+    let context_builder = ContextBuilder::new()
+        .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
+        .with_gl_profile(GlProfile::Core)
+        .with_vsync(true);
+    Ok(GlWindow::new(
+        window_builder,
+        context_builder,
+        events_loop
+    )?)
 }
 
-impl SimulatorWindow {
-    fn new(events_loop: &EventsLoop) -> Result<SimulatorWindow, SimulatorError> {
-        //TODO: Pass in size & fullscreen settings via CLI
-        //let monitor = events_loop.get_primary_monitor();
-        let window_builder = WindowBuilder::new()
-            .with_title(TITLE)
-            .with_dimensions(800, 800);
-            //.with_fullscreen(monitor));
-        let context_builder = ContextBuilder::new()
-            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
-            .with_gl_profile(GlProfile::Core)
-            .with_vsync(true);
-        Ok(SimulatorWindow{window: GlWindow::new(
-            window_builder,
-            context_builder,
-            events_loop
-        )?})
-    }
-
-    fn activate(&self) -> Result<(), SimulatorError> {
-            unsafe { self.window.make_current()?; }
-            gl::load_with(|symbol| {
-                self.window.get_proc_address(symbol) as *const _
-            });
-            //TODO: Only print opengl info if debug is set
-            print_opengl_info();
-            Ok(())
-    }
-
-    fn swap_buffers(&self) -> Result<(), SimulatorError> {
-        self.window.swap_buffers()?;
+fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
+        unsafe { window.make_current()?; }
+        gl::load_with(|symbol| {
+            window.get_proc_address(symbol) as *const _
+        });
+        //TODO: Only print opengl info if debug is set
+        print_opengl_info();
         Ok(())
-    }
+}
 
-    fn get_size(&self) -> Result<(f32, f32), SimulatorError> {
-        self.window.get_inner_size_points()
-            .map(|(w, h)| (w as f32, h as f32))
-            .ok_or(SimulatorError::Window(
-                    "Tried to get size of closed window".to_string()))
-    }
-
-    fn display_fps(&self, fps: u32) {
-        self.window.set_title(&format!("{} - {} fps", TITLE, fps));
-    }
+fn get_window_size(window: &GlWindow) -> Result<(f32, f32), SimulatorError> {
+    window.get_inner_size_points()
+        .map(|(w, h)| (w as f32, h as f32))
+        .ok_or(SimulatorError::Window(
+                "Tried to get size of closed window".to_string()))
 }
 
 fn print_opengl_info() {

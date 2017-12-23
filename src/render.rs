@@ -7,10 +7,6 @@ use cgmath::{Matrix, Matrix3, Point2};
 
 use glx;
 
-pub struct Renderer {
-    transform: Matrix3<f32>,
-}
-
 // Shader sources
 static VS_SRC: &'static str = "
     #version 330 core
@@ -36,6 +32,10 @@ static FS_SRC: &'static str = "
 //TODO: How to handle scaling of point size on retina?
 //TODO: How to run at different resolutions
 
+pub struct Renderer {
+    transform: Matrix3<f32>,
+}
+
 impl Renderer {
     pub fn new(size: (f32, f32)) -> Renderer {
         Renderer {
@@ -43,7 +43,7 @@ impl Renderer {
         }
     }
 
-    pub fn init_gl_pipeline(&self) {
+    pub fn init_pipeline(&self) {
         let program = glx::ShaderProgram::new(VS_SRC, FS_SRC)
             .expect("Problem creating shader program");
 
