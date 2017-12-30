@@ -71,13 +71,18 @@ impl From<ContextError> for SimulatorError {
 }
 
 pub struct SimulationConfig {
-    pub fullscreen: bool,
+    pub window_size: WindowSize,
+}
+
+pub enum WindowSize {
+    Fullscreen,
+    Dimensions((u32, u32)),
 }
 
 //TODO: Slim down the size of this func
 pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
-    let window = build_window(&events_loop, config)?;
+    let window = build_window(&events_loop, &config.window_size)?;
     gl_init(&window)?;
     let size = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(size);
@@ -152,22 +157,25 @@ fn process_keypress(key: VirtualKeyCode) -> Option<ControlEvent> {
     }
 }
 
-fn build_window(events_loop: &EventsLoop, config: &SimulationConfig)
+fn build_window(events_loop: &EventsLoop, window_size: &WindowSize)
     -> Result<GlWindow, SimulatorError> {
 
     let window_builder = WindowBuilder::new().with_title(TITLE);
-    let window_builder = if config.fullscreen {
-        let screen = Some(events_loop.get_primary_monitor());
-        window_builder.with_fullscreen(screen)
-    } else {
-        //TODO: Parameterise width and height
-        window_builder.with_dimensions(800, 800)
+    let window_builder = match window_size {
+        &WindowSize::Fullscreen => {
+            let screen = Some(events_loop.get_primary_monitor());
+            window_builder.with_fullscreen(screen)
+        },
+        &WindowSize::Dimensions((width, height)) => {
+            window_builder.with_dimensions(width, height)
+        }
     };
 
     let context_builder = ContextBuilder::new()
         .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
         .with_gl_profile(GlProfile::Core)
         .with_vsync(true);
+
     Ok(GlWindow::new(
         window_builder,
         context_builder,
