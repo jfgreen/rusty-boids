@@ -41,7 +41,6 @@ impl Boid {
         self.position += self.velocity;
     }
 
-    //TODO: Could we bounce, or halt instead of wrap
     fn wrap_to(&mut self, width: f32, height: f32) {
         if self.position.x < 0. { self.position.x = width };
         if self.position.y < 0. { self.position.y = height };
@@ -122,6 +121,7 @@ impl FlockingSystem {
     }
 
     //TODO: At some point, use spacial data structure
+    //TODO: Break this up a bit
     fn react_to_neighbours(&self, i: usize) -> Force {
         let boid = &self.boids[i];
         let mut dodge = Vector2::new(0., 0.);
