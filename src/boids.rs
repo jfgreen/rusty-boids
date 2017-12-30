@@ -71,6 +71,7 @@ impl From<ContextError> for SimulatorError {
 }
 
 pub struct SimulationConfig {
+    pub boid_count: usize,
     pub window_size: WindowSize,
 }
 
@@ -86,7 +87,7 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     gl_init(&window)?;
     let size = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(size);
-    simulation.add_boids(1000); //TODO: Parameterise / cli arg
+    simulation.add_boids(config.boid_count);
     let renderer = Renderer::new(size);
     renderer.init_pipeline();
     let mut fps_counter = CachedFpsCounter::new(CACHE_FPS_MS);

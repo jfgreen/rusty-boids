@@ -54,15 +54,23 @@ fn build_config() -> SimulationConfig {
              .long("fullscreen")
              .help("Display fullscreen (overrides size argument)")
              .conflicts_with("size"))
+        .arg(Arg::with_name("boids")
+             .short("b")
+             .long("boid-count")
+             .default_value("1000")
+             .help("Sets the number of boids to simulate"))
         .get_matches();
 
-    SimulationConfig {
-        window_size: if matches.is_present("fullscreen") {
+    let window_size = if matches.is_present("fullscreen") {
             WindowSize::Fullscreen
         } else {
             let size = values_t!(matches, "size", u32)
                 .unwrap_or_else(|e| e.exit());
             WindowSize::Dimensions((size[0], size[1]))
-        }
-    }
+        };
+
+    let boid_count = value_t!(matches, "boids", usize)
+            .unwrap_or_else(|e| e.exit());
+
+    SimulationConfig { window_size, boid_count }
 }
