@@ -59,6 +59,10 @@ fn build_config() -> SimulationConfig {
              .long("boid-count")
              .default_value("1000")
              .help("Sets the number of boids to simulate"))
+        .arg(Arg::with_name("debug")
+             .short("d")
+             .long("debug")
+             .help("print opengl debug information"))
         .get_matches();
 
     let window_size = if matches.is_present("fullscreen") {
@@ -72,5 +76,7 @@ fn build_config() -> SimulationConfig {
     let boid_count = value_t!(matches, "boids", usize)
             .unwrap_or_else(|e| e.exit());
 
-    SimulationConfig { window_size, boid_count }
+    let debug = matches.is_present("debug");
+
+    SimulationConfig { window_size, boid_count, debug }
 }

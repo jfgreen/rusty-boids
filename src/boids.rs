@@ -73,6 +73,7 @@ impl From<ContextError> for SimulatorError {
 pub struct SimulationConfig {
     pub boid_count: usize,
     pub window_size: WindowSize,
+    pub debug: bool,
 }
 
 pub enum WindowSize {
@@ -85,6 +86,7 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
     let window = build_window(&events_loop, &config.window_size)?;
     gl_init(&window)?;
+    if config.debug { print_debug_info(); }
     let size = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(size);
     simulation.add_boids(config.boid_count);
@@ -142,9 +144,10 @@ fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
             }, ..
         } => process_keypress(k),
 
+        //TODO: React to mouse
         //WindowEvent::MouseMoved {
         //    position: (x, y), ..
-        //} => self.handle_mouse_move(x as f32, y as f32),
+        //} => ...,
 
         WindowEvent::Closed => Some(ControlEvent::Stop),
         _ => None
@@ -189,8 +192,6 @@ fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
         gl::load_with(|symbol| {
             window.get_proc_address(symbol) as *const _
         });
-        //TODO: Only print opengl info if debug is set
-        print_opengl_info();
         Ok(())
 }
 
@@ -201,7 +202,7 @@ fn get_window_size(window: &GlWindow) -> Result<(f32, f32), SimulatorError> {
                 "Tried to get size of closed window".to_string()))
 }
 
-fn print_opengl_info() {
+fn print_debug_info() {
     println!("Vendor: {}", glx::get_gl_str(gl::VENDOR));
     println!("Renderer: {}", glx::get_gl_str(gl::RENDERER));
     println!("Version: {}", glx::get_gl_str(gl::VERSION));
