@@ -103,7 +103,10 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
         });
         renderer.render(&simulation.positions());
         window.swap_buffers()?;
-        fps_counter.tick(|fps| {
+        fps_counter.tick();
+        // TODO: Consider pulling caching out of fps counter
+        // Could we use a functional/closure thing instead
+        fps_counter.poll_change(|fps| {
             let title = format!("{} - {} fps", TITLE, fps);
             window.set_title(&title);
         });
