@@ -33,40 +33,43 @@ impl FpsCache {
 
 pub struct FpsCounter {
     last_sampled: Instant,
-    samples: Vec<u32>,
+    samples: Vec<Duration>,
     current_sample: usize,
-    rolling_dt_sum: u32,
+    rolling_dt_sum: Duration,
 }
+
 
 impl FpsCounter {
 
     pub fn new() -> FpsCounter {
         FpsCounter {
             last_sampled: Instant::now(),
-            samples: vec![0; NUM_SAMPLES],
+            samples: vec![Duration::new(0, 0); NUM_SAMPLES],
             current_sample: 0,
-            rolling_dt_sum: 0,
+            rolling_dt_sum: Duration::new(0,0),
         }
     }
 
     pub fn tick(&mut self) {
         let dt = self.last_sampled.elapsed();
         self.last_sampled = Instant::now();
-        //TODO: Combine as_secs with subsec_nanos
-        //self.last_delta = dt.as_secs() as f64
-        //                + dt.subsec_nanos() as f64 * 1e-9;
-        self.record(dt.subsec_nanos());
+        self.record(dt);
     }
 
-    pub fn average_delta(&self) -> u32 {
+    pub fn average_delta(&self) -> Duration {
         self.rolling_dt_sum / self.samples.len() as u32
     }
 
     pub fn average_fps(&self) -> u32 {
-        (1. / (self.average_delta() as f64 * 1e-9)) as u32
+        let dt = self.average_delta();
+        if dt > Duration::from_secs(0) && dt < Duration::from_secs(1) {
+            1000_000_000 / dt.subsec_nanos()
+        } else {
+            0
+        }
     }
 
-    fn record(&mut self, sample: u32) {
+    fn record(&mut self, sample: Duration) {
         self.rolling_dt_sum -= self.samples[self.current_sample];
         self.rolling_dt_sum += sample;
         self.samples[self.current_sample] = sample;
@@ -74,4 +77,3 @@ impl FpsCounter {
         self.current_sample %= self.samples.len();
     }
 }
-

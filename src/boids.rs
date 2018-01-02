@@ -106,7 +106,7 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
         window.swap_buffers()?;
         fps_counter.tick();
         fps_cacher.poll(&fps_counter, |new_fps| {
-            let title = format!("{} - {} fps", TITLE, new_fps);
+            let title = format!("{} - {:02} fps", TITLE, new_fps);
             window.set_title(&title);
         });
     }
