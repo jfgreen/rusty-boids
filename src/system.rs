@@ -106,7 +106,7 @@ impl FlockingSystem {
         }
     }
 
-    //TODO: Introduce dt to smooth the simulation
+    //TODO: Make simulation frame independant
     pub fn update(&mut self) {
         for i in 0..self.boids.len() {
             let force = self.react_to_neighbours(i);

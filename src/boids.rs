@@ -13,7 +13,7 @@ use glutin::{
 
 use glx;
 use render::Renderer;
-use fps::CachedFpsCounter;
+use fps::{FpsCounter, FpsCache};
 use system::FlockingSystem;
 
 const TITLE: &'static str = "rusty-boids";
@@ -92,7 +92,8 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     simulation.add_boids(config.boid_count);
     let renderer = Renderer::new(size);
     renderer.init_pipeline();
-    let mut fps_counter = CachedFpsCounter::new(CACHE_FPS_MS);
+    let mut fps_counter = FpsCounter::new();
+    let mut fps_cacher = FpsCache::new(CACHE_FPS_MS);
     let mut running = true;
     while running {
         simulation.update();
@@ -104,10 +105,8 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
         renderer.render(&simulation.positions());
         window.swap_buffers()?;
         fps_counter.tick();
-        // TODO: Consider pulling caching out of fps counter
-        // Could we use a functional/closure thing instead
-        fps_counter.poll_change(|fps| {
-            let title = format!("{} - {} fps", TITLE, fps);
+        fps_cacher.poll(&fps_counter, |new_fps| {
+            let title = format!("{} - {} fps", TITLE, new_fps);
             window.set_title(&title);
         });
     }
