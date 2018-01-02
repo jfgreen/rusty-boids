@@ -201,6 +201,8 @@ fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
         Ok(())
 }
 
+//FIXME: As well as being depricated, this now returns half the size it used to
+// (before upgrading from glutin 0.10 to 0.12)
 fn get_window_size(window: &GlWindow) -> Result<(f32, f32), SimulatorError> {
     window.get_inner_size_points()
         .map(|(w, h)| (w as f32, h as f32))
