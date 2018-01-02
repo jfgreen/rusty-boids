@@ -22,6 +22,8 @@ const SEP_RADIUS_2: f32 = SEP_RADIUS * SEP_RADIUS;
 const ALI_RADIUS_2: f32 = ALI_RADIUS * ALI_RADIUS;
 const COH_RADIUS_2: f32 = COH_RADIUS * COH_RADIUS;
 
+const MOUSE_WEIGHT: f32 = 1000.0;
+
 const TWO_PI: f32 = 2. * PI;
 
 type Position = Point2<f32>;
@@ -49,11 +51,14 @@ impl Boid {
     }
 }
 
+//TODO: Make mouse avoid only apply when pressing
+
 pub struct FlockingSystem {
     boids: Vec<Boid>,
     width: f32,
     height: f32,
     rng: ThreadRng,
+    mouse_position: Position,
 }
 
 impl FlockingSystem {
@@ -63,6 +68,7 @@ impl FlockingSystem {
             width: size.0,
             height: size.1,
             rng: rand::thread_rng(),
+            mouse_position: Point2::new(size.0/2., size.1/2.),
         }
     }
 
@@ -109,9 +115,15 @@ impl FlockingSystem {
     //TODO: Make simulation frame independant
     pub fn update(&mut self) {
         for i in 0..self.boids.len() {
-            let force = self.react_to_neighbours(i);
+            let mut force = Vector2::new(0., 0.);
+            force += self.react_to_neighbours(i);
+            force += self.react_to_mouse(i);
             self.apply_force(i, force);
         }
+    }
+
+    pub fn set_mouse(&mut self, x: f32, y: f32) {
+        self.mouse_position = Position::new(x, y);
     }
 
     fn apply_force(&mut self, id: usize, force: Force) {
@@ -169,6 +181,18 @@ impl FlockingSystem {
             force += COH_WEIGHT * c_steer;
         }
         force
+    }
+
+    fn react_to_mouse(&self, i: usize) -> Force {
+        let boid = &self.boids[i];
+        let from_mouse = boid.position - self.mouse_position;
+        let dist_sq = from_mouse.magnitude2();
+        if dist_sq > 0. {
+            let repulse = MOUSE_WEIGHT / dist_sq;
+            from_mouse.normalize_to(repulse)
+        } else {
+            Vector2::new(0., 0.)
+        }
     }
 
     //TODO: Instead do this with zero copy somehow?

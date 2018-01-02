@@ -87,6 +87,7 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     let window = build_window(&events_loop, &config.window_size)?;
     gl_init(&window)?;
     if config.debug { print_debug_info(); }
+    //TODO: Cleaner if instead of passing around size, we split width, height here
     let size = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(size);
     simulation.add_boids(config.boid_count);
@@ -100,6 +101,7 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
         events_loop.poll_events(|e| match process_event(e) {
             Some(ControlEvent::Stop)   => running = false,
             Some(ControlEvent::Key(k)) => handle_key(&mut simulation, k),
+            Some(ControlEvent::MouseMove(x, y)) => simulation.set_mouse(x, y),
             _ => ()
         });
         renderer.render(&simulation.positions());
@@ -125,6 +127,7 @@ fn handle_key(simulation: &mut FlockingSystem, key: VirtualKeyCode) {
 enum ControlEvent {
     Stop,
     Key(VirtualKeyCode),
+    MouseMove(f32, f32),
 }
 
 fn process_event(event: glutin::Event) -> Option<ControlEvent> {
@@ -146,10 +149,10 @@ fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
             }, ..
         } => process_keypress(k),
 
-        //TODO: React to mouse
-        //WindowEvent::MouseMoved {
-        //    position: (x, y), ..
-        //} => ...,
+        //FIXME: Mouse coordinates are for retina screen
+        WindowEvent::MouseMoved {
+            position: (x, y), ..
+        } => Some(ControlEvent::MouseMove(x as f32, y as f32)),
 
         WindowEvent::Closed => Some(ControlEvent::Stop),
         _ => None
