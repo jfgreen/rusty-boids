@@ -124,6 +124,7 @@ fn handle_key(simulation: &mut FlockingSystem, key: VirtualKeyCode) {
     }
 }
 
+//TODO: Maybe rethink this... we will just end up re-implementing window event...
 enum ControlEvent {
     Stop,
     Key(VirtualKeyCode),
@@ -150,7 +151,7 @@ fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
         } => process_keypress(k),
 
         //FIXME: Mouse coordinates are for retina screen
-        WindowEvent::MouseMoved {
+        WindowEvent::CursorMoved {
             position: (x, y), ..
         } => Some(ControlEvent::MouseMove(x as f32, y as f32)),
 
