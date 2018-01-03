@@ -62,13 +62,13 @@ pub struct FlockingSystem {
 }
 
 impl FlockingSystem {
-    pub fn new(size: (f32, f32)) -> FlockingSystem {
+    pub fn new(width: f32, height: f32) -> FlockingSystem {
         FlockingSystem {
             boids: vec![],
-            width: size.0,
-            height: size.1,
+            width: width,
+            height: height,
             rng: rand::thread_rng(),
-            mouse_position: Point2::new(size.0/2., size.1/2.),
+            mouse_position: Point2::new(width/2., height/2.),
         }
     }
 

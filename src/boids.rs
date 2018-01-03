@@ -87,11 +87,10 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     let window = build_window(&events_loop, &config.window_size)?;
     gl_init(&window)?;
     if config.debug { print_debug_info(); }
-    //TODO: Cleaner if instead of passing around size, we split width, height here
-    let size = get_window_size(&window)?;
-    let mut simulation = FlockingSystem::new(size);
+    let (width, height) = get_window_size(&window)?;
+    let mut simulation = FlockingSystem::new(width, height);
     simulation.add_boids(config.boid_count);
-    let renderer = Renderer::new(size);
+    let renderer = Renderer::new(width, height);
     renderer.init_pipeline();
     let mut fps_counter = FpsCounter::new();
     let mut fps_cacher = FpsCache::new(CACHE_FPS_MS);

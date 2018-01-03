@@ -21,7 +21,7 @@ static VS_SRC: &'static str = "
 
 static FS_SRC: &'static str = "
     #version 330 core
-    out vec4 frag_colour; 
+    out vec4 frag_colour;
 
     void main() {
         frag_colour = vec4(0.1, 0.1, 0.1, 1.0);
@@ -37,9 +37,9 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(size: (f32, f32)) -> Renderer {
+    pub fn new(width: f32, height: f32) -> Renderer {
         Renderer {
-            transform: glx::vtx_transform_2d(size.0, size.1),
+            transform: glx::vtx_transform_2d(width, height),
         }
     }
 
