@@ -86,7 +86,7 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
     let window = build_window(&events_loop, &config.window_size)?;
     gl_init(&window)?;
-    if config.debug { print_debug_info(); }
+    if config.debug { print_debug_info(&window); }
     let (width, height) = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(width, height);
     simulation.add_boids(config.boid_count);
@@ -193,11 +193,11 @@ fn build_window(events_loop: &EventsLoop, window_size: &WindowSize)
 }
 
 fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
-        unsafe { window.make_current()?; }
-        gl::load_with(|symbol| {
-            window.get_proc_address(symbol) as *const _
-        });
-        Ok(())
+    unsafe { window.make_current()?; }
+    gl::load_with(|symbol| {
+        window.get_proc_address(symbol) as *const _
+    });
+    Ok(())
 }
 
 //FIXME: As well as being depricated, this now returns half the size it used to
@@ -209,11 +209,12 @@ fn get_window_size(window: &GlWindow) -> Result<(f32, f32), SimulatorError> {
                 "Tried to get size of closed window".to_string()))
 }
 
-fn print_debug_info() {
+fn print_debug_info(window: &GlWindow) {
     println!("Vendor: {}", glx::get_gl_str(gl::VENDOR));
     println!("Renderer: {}", glx::get_gl_str(gl::RENDERER));
     println!("Version: {}", glx::get_gl_str(gl::VERSION));
     println!("GLSL version: {}", glx::get_gl_str(gl::SHADING_LANGUAGE_VERSION));
     println!("Extensions: {}", glx::get_gl_extensions().join(","));
+    println!("Hidpi factor: {}", window.hidpi_factor());
 }
 
