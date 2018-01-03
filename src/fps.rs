@@ -41,6 +41,10 @@ pub struct FpsCounter {
 
 impl FpsCounter {
 
+    // TODO: Would be more accurate to store instances
+    // See: https://github.com/PistonDevelopers/fps_counter
+    // Could apply rolling average (or LPF) over that to smooth
+
     pub fn new() -> FpsCounter {
         FpsCounter {
             last_sampled: Instant::now(),
