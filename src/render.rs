@@ -29,7 +29,7 @@ static FS_SRC: &'static str = "
 
 //TODO: Handle resizing of screen
 //TODO: Should we be explicity setting glViewport()?
-//TODO: How to handle scaling of point size on retina?
+//TODO: Use hidpi_factor to scale gl_PointSize
 //TODO: How to run at different resolutions
 
 pub struct Renderer {

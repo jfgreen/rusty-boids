@@ -149,7 +149,6 @@ fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
             }, ..
         } => process_keypress(k),
 
-        //FIXME: Mouse coordinates are for retina screen
         WindowEvent::CursorMoved {
             position: (x, y), ..
         } => Some(ControlEvent::MouseMove(x as f32, y as f32)),
@@ -200,11 +199,10 @@ fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
     Ok(())
 }
 
-//FIXME: As well as being depricated, this now returns half the size it used to
-// (before upgrading from glutin 0.10 to 0.12)
 fn get_window_size(window: &GlWindow) -> Result<(f32, f32), SimulatorError> {
-    window.get_inner_size_points()
-        .map(|(w, h)| (w as f32, h as f32))
+    let hidpi = window.hidpi_factor();
+    window.get_inner_size()
+        .map(|(w, h)| (hidpi * w as f32, hidpi * h as f32))
         .ok_or(SimulatorError::Window(
                 "Tried to get size of closed window".to_string()))
 }

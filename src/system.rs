@@ -6,6 +6,9 @@ use rand::distributions::{IndependentSample, Range};
 use rand::ThreadRng;
 use rand;
 
+//FIXME: The most 'pleasing' options depends on the simulation size
+//Could use the size of the simulation to come up with pleasing defaults.
+
 //TODO: Have some sort of control for these
 //Could have a config file, with a flag to reload on change
 const MAX_SPEED: f32 = 2.0;
