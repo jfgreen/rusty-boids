@@ -68,13 +68,13 @@ fn build_config() -> SimulationConfig {
     let window_size = if matches.is_present("fullscreen") {
             WindowSize::Fullscreen
         } else {
-            let size = values_t!(matches, "size", u32)
-                .unwrap_or_else(|e| e.exit());
+            let size_param = values_t!(matches, "size", u32);
+            let size = size_param.unwrap_or_else(|e| e.exit());
             WindowSize::Dimensions((size[0], size[1]))
         };
 
-    let boid_count = value_t!(matches, "boids", usize)
-            .unwrap_or_else(|e| e.exit());
+    let boid_param = value_t!(matches, "boids", usize);
+    let boid_count = boid_param.unwrap_or_else(|e| e.exit());
 
     let debug = matches.is_present("debug");
 
