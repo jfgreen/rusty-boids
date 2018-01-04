@@ -115,6 +115,7 @@ impl FlockingSystem {
         }
     }
 
+    //TODO: Is RC faster than using a usize into an array?
     //TODO: Make simulation frame independant
     pub fn update(&mut self) {
         for i in 0..self.boids.len() {
