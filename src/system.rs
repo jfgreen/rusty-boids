@@ -46,11 +46,11 @@ impl Boid {
         self.position += self.velocity;
     }
 
-    fn wrap_to(&mut self, width: f32, height: f32) {
-        if self.position.x < 0. { self.position.x = width };
-        if self.position.y < 0. { self.position.y = height };
-        if self.position.x > width { self.position.x = 0. };
-        if self.position.y > height { self.position.y = 0. };
+    fn wrap_to(&mut self, space: &SimulationSpace) {
+        if self.position.x < 0. { self.position.x = space.width };
+        if self.position.y < 0. { self.position.y = space.height };
+        if self.position.x > space.width { self.position.x = 0. };
+        if self.position.y > space.height { self.position.y = 0. };
     }
 }
 
@@ -58,27 +58,25 @@ impl Boid {
 
 pub struct FlockingSystem {
     boids: Vec<Boid>,
-    width: f32,
-    height: f32,
-    rng: ThreadRng,
+    space: SimulationSpace,
     mouse_position: Position,
 }
 
 impl FlockingSystem {
     pub fn new(width: f32, height: f32) -> FlockingSystem {
+        let space = SimulationSpace::new(width, height);
+        let center = space.center();
         FlockingSystem {
             boids: vec![],
-            width: width,
-            height: height,
-            rng: rand::thread_rng(),
-            mouse_position: Point2::new(width/2., height/2.),
+            space: space,
+            mouse_position: center,
         }
     }
 
     pub fn add_boids(&mut self, count: usize) {
         for _ in 0..count {
-            let pos = self.random_position();
-            let vel = self.random_velocity();
+            let pos = self.space.random_position();
+            let vel = self.space.random_velocity();
             self.boids.push(Boid{
                 position: pos,
                 velocity: vel,
@@ -87,31 +85,30 @@ impl FlockingSystem {
 
     }
 
-    pub fn resize(&mut self, size: (f32, f32)) {
-        self.width = size.0;
-        self.height = size.1;
+    pub fn resize(&mut self, width: f32, height:f32) {
+        self.space.resize(width, height)
     }
 
 
     pub fn randomise(&mut self) {
-        for i in 0..self.boids.len() {
-           self.boids[i].position = self.random_position();
-           self.boids[i].velocity = self.random_velocity();
+        for boid in &mut self.boids {
+           boid.position = self.space.random_position();
+           boid.velocity = self.space.random_velocity();
         }
     }
 
     pub fn centralise(&mut self) {
-        let center = Point2::new(self.width/2., self.height/2.);
-        for i in 0..self.boids.len() {
-           self.boids[i].position = center;
-           self.boids[i].velocity = self.random_velocity();
+        let center = self.space.center();
+        for boid in &mut self.boids {
+            boid.position = center;
+            boid.velocity = self.space.random_velocity();
         }
     }
 
     pub fn zeroise(&mut self) {
-        for i in 0..self.boids.len() {
-           self.boids[i].position = Point2::new(0., 0.);
-           self.boids[i].velocity = self.random_velocity();
+        for boid in &mut self.boids {
+            boid.position = Point2::new(0., 0.);
+            boid.velocity = self.space.random_velocity();
         }
     }
 
@@ -133,7 +130,7 @@ impl FlockingSystem {
     fn apply_force(&mut self, id: usize, force: Force) {
         let boid = &mut self.boids[id];
         boid.apply_force(force);
-        boid.wrap_to(self.width, self.height);
+        boid.wrap_to(&self.space);
     }
 
     //TODO: At some point, use spacial data structure
@@ -208,6 +205,47 @@ impl FlockingSystem {
             .map(|b| b.position)
             .collect()
     }
+}
+
+
+fn steer(boid: &Boid, target_vel: Velocity) -> Force {
+    let force = target_vel - boid.velocity;
+    limit(force, MAX_FORCE)
+}
+
+fn limit(force: Force, max: f32) -> Force {
+    if force.magnitude2() > max*max {
+        force.normalize_to(max)
+    } else {
+        force
+    }
+}
+
+
+struct SimulationSpace {
+    width: f32,
+    height: f32,
+    rng: ThreadRng,
+}
+
+impl SimulationSpace {
+
+    fn new(width: f32, height: f32) -> SimulationSpace {
+        SimulationSpace {
+            width,
+            height,
+            rng: rand::thread_rng(),
+        }
+    }
+
+    pub fn resize(&mut self, width: f32, height:f32) {
+        self.width = width;
+        self.height = height;
+    }
+
+    fn center(&self) -> Position {
+        Point2::new(self.width/2., self.height/2.)
+    }
 
     fn random_position(&mut self) -> Position {
         let sim_space_x = Range::new(0., self.width);
@@ -227,18 +265,3 @@ impl FlockingSystem {
     }
 
 }
-
-
-fn steer(boid: &Boid, target_vel: Velocity) -> Force {
-    let force = target_vel - boid.velocity;
-    limit(force, MAX_FORCE)
-}
-
-fn limit(force: Force, max: f32) -> Force {
-    if force.magnitude2() > max*max {
-        force.normalize_to(max)
-    } else {
-        force
-    }
-}
-
