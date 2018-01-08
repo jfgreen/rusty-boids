@@ -58,6 +58,7 @@ impl Boid {
 
 pub struct FlockingSystem {
     boids: Vec<Boid>,
+    reactor: BoidReactor,
     space: SimulationSpace,
     mouse_position: Position,
 }
@@ -68,6 +69,7 @@ impl FlockingSystem {
         let center = space.center();
         FlockingSystem {
             boids: vec![],
+            reactor: BoidReactor::new(),
             space: space,
             mouse_position: center,
         }
@@ -115,86 +117,28 @@ impl FlockingSystem {
     //TODO: Is RC faster than using a usize into an array?
     //TODO: Make simulation frame independant
     pub fn update(&mut self) {
+        let forces: Vec<Force> = self.boids.iter()
+            .map(|b| self.calculate_force(b))
+            .collect();
+
         for i in 0..self.boids.len() {
-            let mut force = Vector2::new(0., 0.);
-            force += self.react_to_neighbours(i);
-            force += self.react_to_mouse(i);
-            self.apply_force(i, force);
+            let boid = &mut self.boids[i];
+            boid.apply_force(forces[i]);
+            boid.wrap_to(&self.space);
         }
+    }
+
+    fn calculate_force(&self, boid: &Boid) -> Force {
+        let mut force = Vector2::new(0., 0.);
+        force += self.reactor.react_to_neighbours(boid, self.boids.as_slice());
+        force += self.reactor.react_to_mouse(boid, self.mouse_position);
+        force
     }
 
     pub fn set_mouse(&mut self, x: f32, y: f32) {
         self.mouse_position = Position::new(x, y);
     }
 
-    fn apply_force(&mut self, id: usize, force: Force) {
-        let boid = &mut self.boids[id];
-        boid.apply_force(force);
-        boid.wrap_to(&self.space);
-    }
-
-    //TODO: At some point, use spacial data structure
-    //TODO: Break this up a bit
-    fn react_to_neighbours(&self, i: usize) -> Force {
-        let boid = &self.boids[i];
-        let mut dodge = Vector2::new(0., 0.);
-        let mut ali_vel_acc = Vector2::new(0., 0.);
-        let mut ali_vel_count = 0;
-        let mut coh_pos_acc = Vector2::new(0., 0.);
-        let mut coh_pos_count = 0;
-        for j in 0..self.boids.len() {
-            if i != j {
-                let other = &self.boids[j];
-                let from_neighbour = boid.position - other.position;
-                let dist_squared = from_neighbour.magnitude2();
-                if dist_squared > 0. {
-                    if dist_squared < SEP_RADIUS_2 {
-                        let repulse = 1./dist_squared.sqrt();
-                        dodge += from_neighbour.normalize_to(repulse);
-                    }
-                    if dist_squared < ALI_RADIUS_2 {
-                        ali_vel_acc += other.velocity;
-                        ali_vel_count += 1;
-                    }
-                    if dist_squared < COH_RADIUS_2 {
-                        coh_pos_acc.x += other.position.x;
-                        coh_pos_acc.y += other.position.y;
-                        coh_pos_count += 1;
-                    }
-                }
-            }
-        }
-        let mut force = Vector2::new(0., 0.);
-        if dodge.magnitude2() > 0. {
-            let d_steer = steer(boid, dodge.normalize_to(MAX_SPEED));
-            force += SEP_WEIGHT * d_steer;
-        }
-        if ali_vel_count > 0 {
-            let align = ali_vel_acc / ali_vel_count as f32;
-            let a_steer = steer(boid, align.normalize_to(MAX_SPEED));
-            force += ALI_WEIGHT * a_steer;
-        }
-        if coh_pos_count > 0 {
-            let avg_pos = coh_pos_acc / coh_pos_count as f32;
-            let boid_pos = Vector2::new(boid.position.x, boid.position.y);
-            let cohesion = avg_pos - boid_pos;
-            let c_steer = steer(boid, cohesion.normalize_to(MAX_SPEED));
-            force += COH_WEIGHT * c_steer;
-        }
-        force
-    }
-
-    fn react_to_mouse(&self, i: usize) -> Force {
-        let boid = &self.boids[i];
-        let from_mouse = boid.position - self.mouse_position;
-        let dist_sq = from_mouse.magnitude2();
-        if dist_sq > 0. {
-            let repulse = MOUSE_WEIGHT / dist_sq;
-            from_mouse.normalize_to(repulse)
-        } else {
-            Vector2::new(0., 0.)
-        }
-    }
 
     //TODO: Instead do this with zero copy somehow?
     // Maybe just make renderer accept boids...
@@ -238,7 +182,7 @@ impl SimulationSpace {
         }
     }
 
-    pub fn resize(&mut self, width: f32, height:f32) {
+    fn resize(&mut self, width: f32, height:f32) {
         self.width = width;
         self.height = height;
     }
@@ -264,4 +208,78 @@ impl SimulationSpace {
             .rotate_vector(Vector2::new(0., s))
     }
 
+}
+
+struct BoidReactor {
+    //TODO: This is where the simulation params can go
+}
+
+impl BoidReactor {
+
+    fn new() -> BoidReactor {
+        //TODO: This is where config could be unpacked
+        BoidReactor {}
+    }
+
+    //TODO: At some point, use spacial data structure
+    //TODO: Break this up a bit
+    fn react_to_neighbours(&self, boid: &Boid, boids: &[Boid]) -> Force {
+        let mut dodge = Vector2::new(0., 0.);
+        let mut ali_vel_acc = Vector2::new(0., 0.);
+        let mut ali_vel_count = 0;
+        let mut coh_pos_acc = Vector2::new(0., 0.);
+        let mut coh_pos_count = 0;
+        for j in 0..boids.len() {
+            //TODO: Re-implement this? Think - how it might work with a spacial index
+            //if i != j {
+                let other = &boids[j];
+                let from_neighbour = boid.position - other.position;
+                let dist_squared = from_neighbour.magnitude2();
+                if dist_squared > 0. {
+                    if dist_squared < SEP_RADIUS_2 {
+                        let repulse = 1./dist_squared.sqrt();
+                        dodge += from_neighbour.normalize_to(repulse);
+                    }
+                    if dist_squared < ALI_RADIUS_2 {
+                        ali_vel_acc += other.velocity;
+                        ali_vel_count += 1;
+                    }
+                    if dist_squared < COH_RADIUS_2 {
+                        coh_pos_acc.x += other.position.x;
+                        coh_pos_acc.y += other.position.y;
+                        coh_pos_count += 1;
+                    }
+                }
+            //}
+        }
+        let mut force = Vector2::new(0., 0.);
+        if dodge.magnitude2() > 0. {
+            let d_steer = steer(boid, dodge.normalize_to(MAX_SPEED));
+            force += SEP_WEIGHT * d_steer;
+        }
+        if ali_vel_count > 0 {
+            let align = ali_vel_acc / ali_vel_count as f32;
+            let a_steer = steer(boid, align.normalize_to(MAX_SPEED));
+            force += ALI_WEIGHT * a_steer;
+        }
+        if coh_pos_count > 0 {
+            let avg_pos = coh_pos_acc / coh_pos_count as f32;
+            let boid_pos = Vector2::new(boid.position.x, boid.position.y);
+            let cohesion = avg_pos - boid_pos;
+            let c_steer = steer(boid, cohesion.normalize_to(MAX_SPEED));
+            force += COH_WEIGHT * c_steer;
+        }
+        force
+    }
+
+    fn react_to_mouse(&self, boid: &Boid, mouse_position: Position) -> Force {
+        let from_mouse = boid.position - mouse_position;
+        let dist_sq = from_mouse.magnitude2();
+        if dist_sq > 0. {
+            let repulse = MOUSE_WEIGHT / dist_sq;
+            from_mouse.normalize_to(repulse)
+        } else {
+            Vector2::new(0., 0.)
+        }
+    }
 }
