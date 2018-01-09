@@ -6,6 +6,8 @@ use rand::distributions::{IndependentSample, Range};
 use rand::ThreadRng;
 use rand;
 
+//TODO: See if 64bit is faster?
+
 //FIXME: The most 'pleasing' options depends on the simulation size
 //Could use the size of the simulation to come up with pleasing defaults.
 
@@ -229,28 +231,36 @@ impl BoidReactor {
         let mut ali_vel_count = 0;
         let mut coh_pos_acc = Vector2::new(0., 0.);
         let mut coh_pos_count = 0;
-        for j in 0..boids.len() {
-            //TODO: Re-implement this? Think - how it might work with a spacial index
-            //if i != j {
-                let other = &boids[j];
-                let from_neighbour = boid.position - other.position;
-                let dist_squared = from_neighbour.magnitude2();
-                if dist_squared > 0. {
-                    if dist_squared < SEP_RADIUS_2 {
-                        let repulse = 1./dist_squared.sqrt();
-                        dodge += from_neighbour.normalize_to(repulse);
-                    }
-                    if dist_squared < ALI_RADIUS_2 {
-                        ali_vel_acc += other.velocity;
-                        ali_vel_count += 1;
-                    }
-                    if dist_squared < COH_RADIUS_2 {
-                        coh_pos_acc.x += other.position.x;
-                        coh_pos_acc.y += other.position.y;
-                        coh_pos_count += 1;
-                    }
+        //TODO: Re-implement this? Think - how it might work with a spacial index
+        //if i != j {
+
+        //TODO: What we actually want is the KNN (within a radius)
+        // this will speed up the sim when boids are closely packed
+
+        let mut n = 0;
+        let mut j = 0;
+        //TODO: Implement read KNN!
+        while j < boids.len() && n < 100 {
+            let other = &boids[j];
+            let from_neighbour = boid.position - other.position;
+            let dist_squared = from_neighbour.magnitude2();
+            if dist_squared > 0. {
+                if dist_squared < SEP_RADIUS_2 {
+                    n += 1;
+                    let repulse = 1./dist_squared.sqrt();
+                    dodge += from_neighbour.normalize_to(repulse);
                 }
-            //}
+                if dist_squared < ALI_RADIUS_2 {
+                    ali_vel_acc += other.velocity;
+                    ali_vel_count += 1;
+                }
+                if dist_squared < COH_RADIUS_2 {
+                    coh_pos_acc.x += other.position.x;
+                    coh_pos_acc.y += other.position.y;
+                    coh_pos_count += 1;
+                }
+            }
+            j += 1;
         }
         let mut force = Vector2::new(0., 0.);
         if dodge.magnitude2() > 0. {
