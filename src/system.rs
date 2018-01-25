@@ -49,10 +49,11 @@ impl Boid {
     }
 
     fn wrap_to(&mut self, space: &SimulationSpace) {
-        if self.position.x < 0. { self.position.x = space.width };
-        if self.position.y < 0. { self.position.y = space.height };
-        if self.position.x > space.width { self.position.x = 0. };
-        if self.position.y > space.height { self.position.y = 0. };
+        //FIXME: horrible hack, find a better way
+        if self.position.x <= 0. { self.position.x = space.width - 0.1 };
+        if self.position.y <= 0. { self.position.y = space.height - 0.1 };
+        if self.position.x >= space.width { self.position.x = 0.1 };
+        if self.position.y >= space.height { self.position.y = 0.1 };
     }
 }
 
@@ -62,6 +63,7 @@ pub struct FlockingSystem {
     boids: Vec<Boid>,
     reactor: BoidReactor,
     space: SimulationSpace,
+    grid: BoidGridIndex,
     mouse_position: Position,
 }
 
@@ -73,6 +75,7 @@ impl FlockingSystem {
             boids: vec![],
             reactor: BoidReactor::new(),
             space: space,
+            grid: BoidGridIndex::new(width, height, COH_RADIUS),
             mouse_position: center,
         }
     }
@@ -86,6 +89,7 @@ impl FlockingSystem {
                 velocity: vel,
             });
         }
+        self.grid.index(self.boids.as_slice());
 
     }
 
@@ -123,17 +127,20 @@ impl FlockingSystem {
             .map(|b| self.calculate_force(b))
             .collect();
 
+        //TODO: Could we add this to the above functional code?
         for i in 0..self.boids.len() {
             let boid = &mut self.boids[i];
             boid.apply_force(forces[i]);
             boid.wrap_to(&self.space);
         }
+        self.grid.index(self.boids.as_slice());
     }
 
     fn calculate_force(&self, boid: &Boid) -> Force {
         let mut force = Vector2::new(0., 0.);
-        force += self.reactor.react_to_neighbours(boid, self.boids.as_slice());
-        force += self.reactor.react_to_mouse(boid, self.mouse_position);
+        let others = self.grid.neighbourhood(boid.position);
+        force += self.reactor.react_to_neighbours(boid, self.boids.as_slice(), &others);
+        //force += self.reactor.react_to_mouse(boid, self.mouse_position);
         force
     }
 
@@ -225,7 +232,7 @@ impl BoidReactor {
 
     //TODO: At some point, use spacial data structure
     //TODO: Break this up a bit
-    fn react_to_neighbours(&self, boid: &Boid, boids: &[Boid]) -> Force {
+    fn react_to_neighbours(&self, boid: &Boid, boids: &[Boid], others: &[&usize]) -> Force {
         let mut dodge = Vector2::new(0., 0.);
         let mut ali_vel_acc = Vector2::new(0., 0.);
         let mut ali_vel_count = 0;
@@ -237,11 +244,10 @@ impl BoidReactor {
         //TODO: What we actually want is the KNN (within a radius)
         // this will speed up the sim when boids are closely packed
 
+        //TODO: Pull out others into calling class
         let mut n = 0;
-        let mut j = 0;
-        //TODO: Implement read KNN!
-        while j < boids.len() && n < 100 {
-            let other = &boids[j];
+        for j in others {
+            let other = &boids[**j];
             let from_neighbour = boid.position - other.position;
             let dist_squared = from_neighbour.magnitude2();
             if dist_squared > 0. {
@@ -260,7 +266,6 @@ impl BoidReactor {
                     coh_pos_count += 1;
                 }
             }
-            j += 1;
         }
         let mut force = Vector2::new(0., 0.);
         if dodge.magnitude2() > 0. {
@@ -291,5 +296,88 @@ impl BoidReactor {
         } else {
             Vector2::new(0., 0.)
         }
+    }
+}
+
+struct BoidGridIndex {
+    grid: Vec<Vec<usize>>,
+    sector_size: f32,
+    grid_width: usize,
+    grid_height: usize,
+}
+
+impl BoidGridIndex {
+
+    //TODO: Consider performance of using actual pointer type
+
+    fn new(width: f32, height: f32, sector_size: f32) -> Self {
+        let bucket_capacity = 100;
+
+        // Create enough grid cells to cover requested space
+
+        let grid_width = ((width)/sector_size).ceil() as usize;
+        let grid_height= ((height)/sector_size).ceil() as usize;
+        let sector_count = grid_width * grid_height;
+
+        let mut grid = Vec::with_capacity(sector_count);
+        for _ in 0..sector_count {
+            grid.push(Vec::with_capacity(bucket_capacity));
+        }
+
+        BoidGridIndex {
+            grid,
+            sector_size,
+            grid_width,
+            grid_height,
+        }
+    }
+
+    fn index(&mut self, boids: &[Boid]) {
+        //TODO: Can we avoid total recreation?
+        for sector in &mut self.grid {
+            sector.clear();
+        }
+        for i in 0..boids.len() {
+            let b = &boids[i];
+            let s = self.sector_from_pos(b.position.x, b.position.y);
+            self.grid[s].push(i);
+        }
+    }
+
+    fn grid_location(&self, x: f32, y: f32) -> (usize, usize) {
+        let gx = (x / self.sector_size as f32).trunc();
+        let gy = (y / self.sector_size as f32).trunc();
+        (gx as usize, gy as usize)
+    }
+
+    fn sector_from_grid(&self, gx: usize, gy: usize) -> usize {
+        gx + (gy * self.grid_width)
+    }
+
+    fn sector_from_pos(&self, x: f32, y: f32) -> usize {
+        let (gx, gy) = self.grid_location(x, y);
+        self.sector_from_grid(gx, gy)
+    }
+
+    //TODO: Have the grid return unique pairs? Save half the comparisons.
+    fn neighbourhood(&self, p: Position) -> Box<[&usize]> {
+        // Find sector in question
+        let (gx, gy) = self.grid_location(p.x, p.y);
+
+        // Expand to neighbouring sectors
+        let gx1 = 0.max(gx-1);
+        let gy1 = 0.max(gy-1);
+        let gx2 = (self.grid_width-1).min(gx+1);
+        let gy2 = (self.grid_height-1).min(gy+1);
+
+        //Construct neigbourhood
+        let mut neighbourhood = vec![];
+        for ny in gy1..gy2+1 {
+            for nx in gx1..gx2+1 {
+                let s = self.sector_from_grid(nx, ny);
+                neighbourhood.extend(self.grid[s].as_slice());
+            }
+        }
+        neighbourhood.into_boxed_slice()
     }
 }
