@@ -18,9 +18,9 @@ const MAX_FORCE: f32 = 0.1;
 const SEP_WEIGHT: f32 = 1.5;
 const ALI_WEIGHT: f32 = 1.0;
 const COH_WEIGHT: f32 = 1.0;
-const SEP_RADIUS: f32 = 25.0;
-const ALI_RADIUS: f32 = 50.0;
-const COH_RADIUS: f32 = 50.0;
+const SEP_RADIUS: f32 = 17.0;
+const ALI_RADIUS: f32 = 25.0;
+const COH_RADIUS: f32 = 25.0;
 
 // Maintain squared versions to speed up calculation
 const SEP_RADIUS_2: f32 = SEP_RADIUS * SEP_RADIUS;
@@ -140,7 +140,7 @@ impl FlockingSystem {
         let mut force = Vector2::new(0., 0.);
         let others = self.grid.neighbourhood(boid.position);
         force += self.reactor.react_to_neighbours(boid, self.boids.as_slice(), &others);
-        //force += self.reactor.react_to_mouse(boid, self.mouse_position);
+        force += self.reactor.react_to_mouse(boid, self.mouse_position);
         force
     }
 
@@ -359,7 +359,7 @@ impl BoidGridIndex {
         self.sector_from_grid(gx, gy)
     }
 
-    //TODO: Have the grid return unique pairs? Save half the comparisons.
+    //TODO: Have the grid return unique pairs? Save half the comparisons?
     fn neighbourhood(&self, p: Position) -> Box<[&usize]> {
         // Find sector in question
         let (gx, gy) = self.grid_location(p.x, p.y);
