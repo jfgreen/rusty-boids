@@ -36,6 +36,7 @@ type Velocity = Vector2<f32>;
 type Force = Vector2<f32>;
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 struct Boid {
     position: Position,
     velocity: Velocity,
@@ -139,7 +140,8 @@ impl FlockingSystem {
     fn calculate_force(&self, boid: &Boid) -> Force {
         let mut force = Vector2::new(0., 0.);
         let others = self.grid.neighbourhood(boid.position);
-        force += self.reactor.react_to_neighbours(boid, self.boids.as_slice(), &others);
+        //TODO: Lose box?
+        force += self.reactor.react_to_neighbours(boid, &others);
         force += self.reactor.react_to_mouse(boid, self.mouse_position);
         force
     }
@@ -232,7 +234,7 @@ impl BoidReactor {
 
     //TODO: At some point, use spacial data structure
     //TODO: Break this up a bit
-    fn react_to_neighbours(&self, boid: &Boid, boids: &[Boid], others: &[&usize]) -> Force {
+    fn react_to_neighbours(&self, boid: &Boid, others: &[&Boid]) -> Force {
         let mut dodge = Vector2::new(0., 0.);
         let mut ali_vel_acc = Vector2::new(0., 0.);
         let mut ali_vel_count = 0;
@@ -244,10 +246,8 @@ impl BoidReactor {
         //TODO: What we actually want is the KNN (within a radius)
         // this will speed up the sim when boids are closely packed
 
-        //TODO: Pull out others into calling class
         let mut n = 0;
-        for j in others {
-            let other = &boids[**j];
+        for other in others {
             let from_neighbour = boid.position - other.position;
             let dist_squared = from_neighbour.magnitude2();
             if dist_squared > 0. {
@@ -299,8 +299,10 @@ impl BoidReactor {
     }
 }
 
+//TODO: Also play with raw (unsafe) pointers
+
 struct BoidGridIndex {
-    grid: Vec<Vec<usize>>,
+    grid: Vec<Vec<Boid>>,
     sector_size: f32,
     grid_width: usize,
     grid_height: usize,
@@ -308,10 +310,10 @@ struct BoidGridIndex {
 
 impl BoidGridIndex {
 
-    //TODO: Consider performance of using actual pointer type
-
     fn new(width: f32, height: f32, sector_size: f32) -> Self {
-        let bucket_capacity = 100;
+        //TODO: How to detect these sensibly?
+        //TODO: Could we just _enforce_ this and throw away data instead of reallocating?
+        let bucket_capacity = 200;
 
         // Create enough grid cells to cover requested space
 
@@ -337,10 +339,10 @@ impl BoidGridIndex {
         for sector in &mut self.grid {
             sector.clear();
         }
-        for i in 0..boids.len() {
-            let b = &boids[i];
-            let s = self.sector_from_pos(b.position.x, b.position.y);
-            self.grid[s].push(i);
+        for boid in boids.iter() {
+            //TODO: Pass in position instead of destructuring here
+            let s = self.sector_from_pos(boid.position.x, boid.position.y);
+            self.grid[s].push(boid.clone());
         }
     }
 
@@ -359,8 +361,8 @@ impl BoidGridIndex {
         self.sector_from_grid(gx, gy)
     }
 
-    //TODO: Have the grid return unique pairs? Save half the comparisons?
-    fn neighbourhood(&self, p: Position) -> Box<[&usize]> {
+    fn neighbourhood(&self, p: Position) -> Box<[&Boid]> {
+        //TODO: Experiment with retaining buffer for these queries
         // Find sector in question
         let (gx, gy) = self.grid_location(p.x, p.y);
 
