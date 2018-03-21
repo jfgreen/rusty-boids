@@ -88,8 +88,8 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     gl_init(&window)?;
     if config.debug { print_debug_info(&window); }
     let (width, height) = get_window_size(&window)?;
-    let mut simulation = FlockingSystem::new(width, height);
-    simulation.add_boids(config.boid_count);
+    let mut simulation = FlockingSystem::new(width, height, config.boid_count);
+    //simulation.add_boids(config.boid_count);
     let renderer = Renderer::new(width, height);
     renderer.init_pipeline();
     let mut fps_counter = FpsCounter::new();

@@ -1,3 +1,5 @@
+//TODO: Compile all the TODOs, have a little think, and rewrite this mess
+
 use std::f32::consts::PI;
 
 use cgmath::{Point2, Vector2, InnerSpace};
@@ -18,18 +20,24 @@ const MAX_FORCE: f32 = 0.1;
 const SEP_WEIGHT: f32 = 1.5;
 const ALI_WEIGHT: f32 = 1.0;
 const COH_WEIGHT: f32 = 1.0;
-const SEP_RADIUS: f32 = 17.0;
-const ALI_RADIUS: f32 = 25.0;
-const COH_RADIUS: f32 = 25.0;
+const SEP_RADIUS: f32 = 10.0;
+const ALI_RADIUS: f32 = 15.5;
+const COH_RADIUS: f32 = 15.5;
+//const SEP_RADIUS: f32 = 17.0;
+//const ALI_RADIUS: f32 = 25.0;
+//const COH_RADIUS: f32 = 25.0;
 
 // Maintain squared versions to speed up calculation
 const SEP_RADIUS_2: f32 = SEP_RADIUS * SEP_RADIUS;
 const ALI_RADIUS_2: f32 = ALI_RADIUS * ALI_RADIUS;
 const COH_RADIUS_2: f32 = COH_RADIUS * COH_RADIUS;
 
-const MOUSE_WEIGHT: f32 = 1000.0;
+//const MOUSE_WEIGHT: f32 = 1000.0;
+const MOUSE_WEIGHT: f32 = 600.0;
 
 const TWO_PI: f32 = 2. * PI;
+
+const SHELL_GAPS: [usize; 9] = [1750, 701, 301, 132, 57, 23, 10, 4, 1];
 
 type Position = Point2<f32>;
 type Velocity = Vector2<f32>;
@@ -50,6 +58,7 @@ impl Boid {
     }
 
     fn wrap_to(&mut self, space: &SimulationSpace) {
+        //TODO: Can probably remove this hack now we are using a direct grid structure
         //FIXME: horrible hack, find a better way
         if self.position.x <= 0. { self.position.x = space.width - 0.1 };
         if self.position.y <= 0. { self.position.y = space.height - 0.1 };
@@ -61,89 +70,96 @@ impl Boid {
 //TODO: Make mouse avoid only apply when pressing
 
 pub struct FlockingSystem {
-    boids: Vec<Boid>,
+    grid: BoidGrid,
     reactor: BoidReactor,
     space: SimulationSpace,
-    grid: BoidGridIndex,
     mouse_position: Position,
 }
 
 impl FlockingSystem {
-    pub fn new(width: f32, height: f32) -> FlockingSystem {
-        let space = SimulationSpace::new(width, height);
+    pub fn new(width: f32, height: f32, desired_boids: usize) -> FlockingSystem {
+        let mut space = SimulationSpace::new(width, height);
         let center = space.center();
         FlockingSystem {
-            boids: vec![],
+            grid: BoidGrid::new(&mut space, desired_boids),
             reactor: BoidReactor::new(),
             space: space,
-            grid: BoidGridIndex::new(width, height, COH_RADIUS),
             mouse_position: center,
         }
     }
 
-    pub fn add_boids(&mut self, count: usize) {
-        for _ in 0..count {
-            let pos = self.space.random_position();
-            let vel = self.space.random_velocity();
-            self.boids.push(Boid{
-                position: pos,
-                velocity: vel,
-            });
-        }
-        self.grid.index(self.boids.as_slice());
-
-    }
-
     pub fn resize(&mut self, width: f32, height:f32) {
-        self.space.resize(width, height)
+        self.space.resize(width, height);
+        unimplemented!("Need to resize grid"); 
     }
 
-
+    // TODO: Should these 3 methods really manipulate inside BoidGrid?
+    // Have it return an iterator, use a closure or something?
+    
     pub fn randomise(&mut self) {
-        for boid in &mut self.boids {
+        for boid in &mut self.grid.grid {
            boid.position = self.space.random_position();
            boid.velocity = self.space.random_velocity();
         }
+        self.grid.partial_reorder();
     }
 
     pub fn centralise(&mut self) {
         let center = self.space.center();
-        for boid in &mut self.boids {
+        for boid in &mut self.grid.grid {
             boid.position = center;
             boid.velocity = self.space.random_velocity();
         }
+        self.grid.partial_reorder();
     }
 
     pub fn zeroise(&mut self) {
-        for boid in &mut self.boids {
+        for boid in &mut self.grid.grid {
             boid.position = Point2::new(0., 0.);
             boid.velocity = self.space.random_velocity();
         }
+        self.grid.partial_reorder();
     }
 
-    //TODO: Is RC faster than using a usize into an array?
+    // TODO: Remove strange density artefacts?
+    // Observation, when boids are dense, a larger search radius removes strange artefacts
+    //
+    // Idea: throw in random "panic" force when they get close - stop these resonances
+    // Idea: be dynamic with neighbourhood look up range?
+    // Idea: use d^3 instead of d^2 for repulsion
+
     //TODO: Make simulation frame independant
     pub fn update(&mut self) {
-        let forces: Vec<Force> = self.boids.iter()
-            .map(|b| self.calculate_force(b))
-            .collect();
+
+        //TODO: Do away with the need to store intermediate forces by using a double buffer?
+        let mut forces = Vec::with_capacity(self.grid.grid.len());
+        for _ in 0..self.grid.grid.len() {
+            forces.push(Vector2::new(0., 0.));
+        }
+
+        //TODO: Can we create an iterator that returns ref to each boid and it's neighbourhood
+        for row in 0..self.grid.dim_y {
+            for col in 0..self.grid.dim_x {
+            let i = self.grid.grid_index(col, row);
+            let mut force = Vector2::new(0., 0.);
+            let boid = &self.grid.grid[i]; 
+            //TODO: Lose box?
+            let others = self.grid.neighbourhood(col, row, 1);
+            force += self.reactor.react_to_neighbours(boid, &others);
+            force += self.reactor.react_to_mouse(boid, self.mouse_position);
+            forces[i] = force;
+            }
+        }
+
 
         //TODO: Could we add this to the above functional code?
-        for i in 0..self.boids.len() {
-            let boid = &mut self.boids[i];
+        for i in 0..self.grid.grid.len() {
+            let boid = &mut self.grid.grid[i];
             boid.apply_force(forces[i]);
             boid.wrap_to(&self.space);
         }
-        self.grid.index(self.boids.as_slice());
-    }
 
-    fn calculate_force(&self, boid: &Boid) -> Force {
-        let mut force = Vector2::new(0., 0.);
-        let others = self.grid.neighbourhood(boid.position);
-        //TODO: Lose box?
-        force += self.reactor.react_to_neighbours(boid, &others);
-        force += self.reactor.react_to_mouse(boid, self.mouse_position);
-        force
+        self.grid.partial_reorder();
     }
 
     pub fn set_mouse(&mut self, x: f32, y: f32) {
@@ -156,7 +172,7 @@ impl FlockingSystem {
     // use two vertex atribs for vel and pos
     // do something pretty with vel...?
     pub fn positions(&self) -> Vec<Position> {
-        self.boids.iter()
+        self.grid.grid.iter()
             .map(|b| b.position)
             .collect()
     }
@@ -176,7 +192,157 @@ fn limit(force: Force, max: f32) -> Force {
     }
 }
 
+//TODO: Reconsider where we use usize
+struct BoidGrid {
+    dim_x: usize,
+    dim_y: usize,
+    grid: Vec<Boid>,
+}
 
+//TODO: Probably flatten things out, then refactor back into nice structs
+
+impl BoidGrid {
+    
+    //TODO: Find a way to have sentinal values and hence an exact size
+    // If we have an invariant that they will always be sorted to the end, then cut short the
+    // length of the returned slice
+    fn new(space: &mut SimulationSpace, desired_boids: usize) -> Self {
+        // Create a grid of that fits at least desired_boids,
+        // while fitting the aspect ratio of space
+        
+        let aspect_ratio = space.aspect_ratio();
+        let mut dim_x = 0; 
+        let mut dim_y = 0; 
+        while dim_x * dim_y < desired_boids {
+            dim_x += 1;
+            dim_y = (dim_x as f32 * aspect_ratio) as usize;
+        }
+
+        let grid_capacity = dim_x*dim_y;
+        let mut grid = Vec::with_capacity(grid_capacity);
+        for _ in 0..grid_capacity {
+            grid.push(Boid{
+                position: space.random_position(),
+                velocity: space.random_velocity(),
+            });
+        }
+
+        BoidGrid {
+            dim_x,
+            dim_y,
+            grid,
+        }
+    }
+
+    //TODO: Experiment with full ordering?
+    fn partial_reorder(&mut self) {
+        self.spatial_shell_sort(&SHELL_GAPS);
+    }
+
+    fn spatial_shell_sort(&mut self, gaps: &[usize]) {
+        //TODO: Could we pick the right starting gap such that we dont need these checks?
+        for &gap in gaps {
+            if gap < self.dim_x {
+               self.spatial_shell_pass_rows(gap);
+            }
+            if gap < self.dim_y {
+               self.spatial_shell_pass_columns(gap);
+            }
+        }
+
+    }
+
+    //TODO: Is relying on copy types ok for perf?
+    
+    fn spatial_shell_pass_rows(&mut self, gap: usize) {
+        for row in 0..self.dim_y {
+            for col in gap..self.dim_x {
+                let temp = self.get(col, row);
+                let mut j = col;
+                while j >= gap {
+                    let curr = self.get(j-gap, row);
+                    if curr.position.x > temp.position.x {
+                       self.set(j, row, curr); 
+                    } else {
+                        break;
+                    }
+                    j -= gap;
+                }
+                if j != col {
+                   self.set(j, row, temp); 
+                }
+            }
+        }
+    }
+
+    fn spatial_shell_pass_columns(&mut self, gap: usize) {
+        for col in 0..self.dim_x {
+            for row in gap..self.dim_y {
+                let temp = self.get(col, row);
+                let mut j = row;
+                while j >= gap {
+                    let curr = self.get(col, j-gap);
+                    if curr.position.y > temp.position.y {
+                       self.set(col, j, curr); 
+                    } else {
+                        break;
+                    }
+                    j -= gap;
+                }
+                if j != row {
+                   self.set(col, j, temp); 
+                }
+            }
+        }
+    }
+
+    fn grid_index(&self, column: usize, row: usize) -> usize {
+       return column + (row * self.dim_x) 
+    }
+
+    // TODO: Maybe dont need this?
+    fn get(&self, column: usize, row: usize) -> Boid {
+        let index = self.grid_index(column, row);
+        return self.grid[index];
+    }
+
+    // TODO: Maybe dont need this?
+    fn get_ref(&self, column: usize, row: usize) -> &Boid {
+        let index = self.grid_index(column, row);
+        return &self.grid[index];
+    }
+
+    // TODO: Maybe dont need this?
+    fn set(&mut self, column: usize, row: usize, boid: Boid){
+        let index = self.grid_index(column, row);
+        self.grid[index] = boid;
+    }
+
+    //TODO: Probs lose this, dont need to be boxy really
+    fn neighbourhood(&self, col: usize, row: usize, n: usize) -> Box<[&Boid]>{
+        let mut neighbourhood = vec![];
+        for j in usize::max(row-n, 0)..usize::min(row+n+1, self.dim_y) {
+            for i in usize::max(col-n, 0)..usize::min(col+n+1, self.dim_x) {
+                if j == row && i == col { continue; }
+                neighbourhood.push(self.get_ref(i, j));
+            }
+        }
+        neighbourhood.into_boxed_slice()
+    }
+
+    //fn resize(space: &SimulationSpace, desired_size: u32) {
+    //    unimplemented!();
+    //}
+    
+    // TODO: Once we do have a more dynamic grid, could implement add/remove?
+    // TODO: Implement iterator?
+    //
+    //TODO: method that takes a closure for updating a boid, handles double buffering and so on
+}
+
+//TODO: Class for double buffered grid?
+
+//TOOD: Should space have a rng? Maybe pass in instead.
 struct SimulationSpace {
     width: f32,
     height: f32,
@@ -210,6 +376,7 @@ impl SimulationSpace {
         Point2::new(x, y)
     }
 
+    //TODO Should this really belong to space
     fn random_velocity(&mut self) -> Velocity {
         let vel_space = Range::new(0., MAX_SPEED);
         let ang_space = Range::new(0., TWO_PI);
@@ -219,6 +386,9 @@ impl SimulationSpace {
             .rotate_vector(Vector2::new(0., s))
     }
 
+    fn aspect_ratio(&mut self) -> f32 {
+        self.height / self.width
+    }
 }
 
 struct BoidReactor {
@@ -299,87 +469,4 @@ impl BoidReactor {
     }
 }
 
-//TODO: Also play with raw (unsafe) pointers
 
-struct BoidGridIndex {
-    grid: Vec<Vec<Boid>>,
-    sector_size: f32,
-    grid_width: usize,
-    grid_height: usize,
-}
-
-impl BoidGridIndex {
-
-    fn new(width: f32, height: f32, sector_size: f32) -> Self {
-        //TODO: How to detect these sensibly?
-        //TODO: Could we just _enforce_ this and throw away data instead of reallocating?
-        let bucket_capacity = 200;
-
-        // Create enough grid cells to cover requested space
-
-        let grid_width = ((width)/sector_size).ceil() as usize;
-        let grid_height= ((height)/sector_size).ceil() as usize;
-        let sector_count = grid_width * grid_height;
-
-        let mut grid = Vec::with_capacity(sector_count);
-        for _ in 0..sector_count {
-            grid.push(Vec::with_capacity(bucket_capacity));
-        }
-
-        BoidGridIndex {
-            grid,
-            sector_size,
-            grid_width,
-            grid_height,
-        }
-    }
-
-    fn index(&mut self, boids: &[Boid]) {
-        //TODO: Can we avoid total recreation?
-        for sector in &mut self.grid {
-            sector.clear();
-        }
-        for boid in boids.iter() {
-            //TODO: Pass in position instead of destructuring here
-            let s = self.sector_from_pos(boid.position.x, boid.position.y);
-            self.grid[s].push(boid.clone());
-        }
-    }
-
-    fn grid_location(&self, x: f32, y: f32) -> (usize, usize) {
-        let gx = (x / self.sector_size as f32).trunc();
-        let gy = (y / self.sector_size as f32).trunc();
-        (gx as usize, gy as usize)
-    }
-
-    fn sector_from_grid(&self, gx: usize, gy: usize) -> usize {
-        gx + (gy * self.grid_width)
-    }
-
-    fn sector_from_pos(&self, x: f32, y: f32) -> usize {
-        let (gx, gy) = self.grid_location(x, y);
-        self.sector_from_grid(gx, gy)
-    }
-
-    fn neighbourhood(&self, p: Position) -> Box<[&Boid]> {
-        //TODO: Experiment with retaining buffer for these queries
-        // Find sector in question
-        let (gx, gy) = self.grid_location(p.x, p.y);
-
-        // Expand to neighbouring sectors
-        let gx1 = 0.max(gx-1);
-        let gy1 = 0.max(gy-1);
-        let gx2 = (self.grid_width-1).min(gx+1);
-        let gy2 = (self.grid_height-1).min(gy+1);
-
-        //Construct neigbourhood
-        let mut neighbourhood = vec![];
-        for ny in gy1..gy2+1 {
-            for nx in gx1..gx2+1 {
-                let s = self.sector_from_grid(nx, ny);
-                neighbourhood.extend(self.grid[s].as_slice());
-            }
-        }
-        neighbourhood.into_boxed_slice()
-    }
-}
