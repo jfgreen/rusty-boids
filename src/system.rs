@@ -1,4 +1,5 @@
-//TODO: Compile all the TODOs, have a little think, and rewrite this mess
+//TODO: Compile all the TODOs, have a little think, and rewrite this mess 🔥
+//Next up to study: Rust parrelelism (simd, threaded), style guides/conventions
 
 use std::f32::consts::PI;
 
@@ -15,14 +16,14 @@ use rand;
 
 //TODO: Have some sort of control for these
 //Could have a config file, with a flag to reload on change
-const MAX_SPEED: f32 = 2.0;
-const MAX_FORCE: f32 = 0.1;
+const MAX_SPEED: f32 = 2.5;
+const MAX_FORCE: f32 = 0.4;
 const SEP_WEIGHT: f32 = 1.5;
 const ALI_WEIGHT: f32 = 1.0;
 const COH_WEIGHT: f32 = 1.0;
-const SEP_RADIUS: f32 = 10.0;
-const ALI_RADIUS: f32 = 15.5;
-const COH_RADIUS: f32 = 15.5;
+const SEP_RADIUS: f32 = 6.0;
+const ALI_RADIUS: f32 = 11.5;
+const COH_RADIUS: f32 = 11.5;
 //const SEP_RADIUS: f32 = 17.0;
 //const ALI_RADIUS: f32 = 25.0;
 //const COH_RADIUS: f32 = 25.0;
@@ -32,7 +33,6 @@ const SEP_RADIUS_2: f32 = SEP_RADIUS * SEP_RADIUS;
 const ALI_RADIUS_2: f32 = ALI_RADIUS * ALI_RADIUS;
 const COH_RADIUS_2: f32 = COH_RADIUS * COH_RADIUS;
 
-//const MOUSE_WEIGHT: f32 = 1000.0;
 const MOUSE_WEIGHT: f32 = 600.0;
 
 const TWO_PI: f32 = 2. * PI;
@@ -58,7 +58,6 @@ impl Boid {
     }
 
     fn wrap_to(&mut self, space: &SimulationSpace) {
-        //TODO: Can probably remove this hack now we are using a direct grid structure
         //FIXME: horrible hack, find a better way
         if self.position.x <= 0. { self.position.x = space.width - 0.1 };
         if self.position.y <= 0. { self.position.y = space.height - 0.1 };
@@ -90,12 +89,12 @@ impl FlockingSystem {
 
     pub fn resize(&mut self, width: f32, height:f32) {
         self.space.resize(width, height);
-        unimplemented!("Need to resize grid"); 
+        unimplemented!("Need to resize grid");
     }
 
     // TODO: Should these 3 methods really manipulate inside BoidGrid?
     // Have it return an iterator, use a closure or something?
-    
+
     pub fn randomise(&mut self) {
         for boid in &mut self.grid.grid {
            boid.position = self.space.random_position();
@@ -122,16 +121,39 @@ impl FlockingSystem {
     }
 
     // TODO: Remove strange density artefacts?
-    // Observation, when boids are dense, a larger search radius removes strange artefacts
+    // Observation, when boids are dense, larger search radius mitigate strange artefacts, slightly
     //
+    // Idea: Give the boids a visual field that filters out ones behind them.
+    // Idea: Adjust the sorting algorithm slightly? - e.g comparison operator, randomness?
+    //       Comparison operator helps a bit, but has its own visual quirks.
+    //       Maybe sort in different directions and stuff?
     // Idea: throw in random "panic" force when they get close - stop these resonances
-    // Idea: be dynamic with neighbourhood look up range?
-    // Idea: use d^3 instead of d^2 for repulsion
+    // Idea: Be dynamic with neighbourhood look up range?
+    //       If super busy, could avoid slowdown by sampling.
+    // Idea: What if we do immediate, then diagonal neighbours? - will one bias overcome another?
+    // Idea: what about hexagonal grids?
+    //
+    //
+    // VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
+    //
+    // Really cool idea: can we just detect how busy the neighbourhood is and use it to scale
+    // repulsion, based only on some immediate/sampled neighbours positions?
+    //
+    // Could such a "panic factor" overcome MAX_FORCE? Having a dynamic max force could be cool
+    // actually. Or just a different max force for dodge?
+    //
+    // Although, you could infer than an area is busy from extreme closeness
+    //
+    // Maybe we can take a cue from reynolds subsumption architecture?
+    // Disable one behaviour in favour of another?
+    //
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     //TODO: Make simulation frame independant
     pub fn update(&mut self) {
 
-        //TODO: Do away with the need to store intermediate forces by using a double buffer?
+        //TODO: Do away with the need to store intermediate forces by using a double buffer,
+        //stack allocated Vec, or include force in Boid struct...
         let mut forces = Vec::with_capacity(self.grid.grid.len());
         for _ in 0..self.grid.grid.len() {
             forces.push(Vector2::new(0., 0.));
@@ -140,19 +162,18 @@ impl FlockingSystem {
         //TODO: Can we create an iterator that returns ref to each boid and it's neighbourhood
         for row in 0..self.grid.dim_y {
             for col in 0..self.grid.dim_x {
-            let i = self.grid.grid_index(col, row);
-            let mut force = Vector2::new(0., 0.);
-            let boid = &self.grid.grid[i]; 
-            //TODO: Lose box?
-            let others = self.grid.neighbourhood(col, row, 1);
-            force += self.reactor.react_to_neighbours(boid, &others);
-            force += self.reactor.react_to_mouse(boid, self.mouse_position);
-            forces[i] = force;
+                let i = self.grid.grid_index(col, row);
+                let mut force = Vector2::new(0., 0.);
+                let boid = &self.grid.grid[i];
+                //TODO: Lose box?
+                let others = self.grid.neighbourhood(col, row, 1);
+                force += self.reactor.react_to_neighbours(boid, &others);
+                force += self.reactor.react_to_mouse(boid, self.mouse_position);
+                forces[i] = force;
             }
         }
 
 
-        //TODO: Could we add this to the above functional code?
         for i in 0..self.grid.grid.len() {
             let boid = &mut self.grid.grid[i];
             boid.apply_force(forces[i]);
@@ -202,17 +223,14 @@ struct BoidGrid {
 //TODO: Probably flatten things out, then refactor back into nice structs
 
 impl BoidGrid {
-    
+
     //TODO: Find a way to have sentinal values and hence an exact size
     // If we have an invariant that they will always be sorted to the end, then cut short the
     // length of the returned slice
     fn new(space: &mut SimulationSpace, desired_boids: usize) -> Self {
-        // Create a grid of that fits at least desired_boids,
-        // while fitting the aspect ratio of space
-        
         let aspect_ratio = space.aspect_ratio();
-        let mut dim_x = 0; 
-        let mut dim_y = 0; 
+        let mut dim_x = 0;
+        let mut dim_y = 0;
         while dim_x * dim_y < desired_boids {
             dim_x += 1;
             dim_y = (dim_x as f32 * aspect_ratio) as usize;
@@ -253,7 +271,7 @@ impl BoidGrid {
     }
 
     //TODO: Is relying on copy types ok for perf?
-    
+
     fn spatial_shell_pass_rows(&mut self, gap: usize) {
         for row in 0..self.dim_y {
             for col in gap..self.dim_x {
@@ -261,15 +279,16 @@ impl BoidGrid {
                 let mut j = col;
                 while j >= gap {
                     let curr = self.get(j-gap, row);
-                    if curr.position.x > temp.position.x {
-                       self.set(j, row, curr); 
+                    //if curr.position.x > temp.position.x {
+                    if x_compare(&curr, &temp) {
+                       self.set(j, row, curr);
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != col {
-                   self.set(j, row, temp); 
+                   self.set(j, row, temp);
                 }
             }
         }
@@ -282,22 +301,23 @@ impl BoidGrid {
                 let mut j = row;
                 while j >= gap {
                     let curr = self.get(col, j-gap);
-                    if curr.position.y > temp.position.y {
-                       self.set(col, j, curr); 
+                    if y_compare(&curr, &temp) {
+                    //if curr.position.y > temp.position.y {
+                       self.set(col, j, curr);
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != row {
-                   self.set(col, j, temp); 
+                   self.set(col, j, temp);
                 }
             }
         }
     }
 
     fn grid_index(&self, column: usize, row: usize) -> usize {
-       return column + (row * self.dim_x) 
+       return column + (row * self.dim_x)
     }
 
     // TODO: Maybe dont need this?
@@ -321,23 +341,114 @@ impl BoidGrid {
     //TODO: Probs lose this, dont need to be boxy really
     fn neighbourhood(&self, col: usize, row: usize, n: usize) -> Box<[&Boid]>{
         let mut neighbourhood = vec![];
+
+        /*
         for j in usize::max(row-n, 0)..usize::min(row+n+1, self.dim_y) {
             for i in usize::max(col-n, 0)..usize::min(col+n+1, self.dim_x) {
                 if j == row && i == col { continue; }
                 neighbourhood.push(self.get_ref(i, j));
             }
         }
+        */
+
+        // Having a uniform "eyes in back of head" 8 grid makes for big stodgy flocks
+        // So generate candidate neighbours based on direction of boid
+
+        let b = self.get_ref(col, row);
+        let bx = b.velocity.x;
+        let by = b.velocity.y;
+
+        //TODO: Sort the neighbours below into memory access patter order
+
+        //TODO Remove use of i32, use usize instead
+        let neighbours: &[(i32, i32)] = match (bx > 0., by > 0., bx.abs() > by.abs() ) {
+            (true, true, true) =>
+                &[(1, -1), (1, 0), (1, 1), (2, 0), (2, 1), (0, 1), (2, 2), (0, -1), (2, -1), (1, 2)],
+
+            (true, true, false) =>
+                &[(1, 1), (0, 1), (-1, 1), (0, 2), (1, 2), (1, 0), (2, 2), (-1, 0), (2, 1), (-1, 2)],
+
+            (false, true, false) =>
+                &[(1, 1), (0, 1), (-1, 1), (0, 2), (-1, 2), (-1, 0), (-2, 2), (1, 0), (1, 2), (-2, 1)],
+
+            (false, true, true) =>
+                &[(-1, 1), (-1, 0), (-1, -1), (-2, 0), (-2, 1), (0, 1), (-2, 2), (0, -1), (-1, 2), (-2, -1)],
+
+            (false, false, true) =>
+                &[(-1, 1), (-1, 0), (-1, -1), (-2, 0), (-2, -1), (0, -1), (-2, -2), (0, 1), (-2, 1), (-1, -2)],
+
+            (false, false, false) =>
+                &[(-1, -1), (0, -1), (1, -1), (0, -2), (-1, -2), (-1, 0), (-2, -2), (1, 0), (-2, -1), (1, -2)],
+
+            (true, false, false) =>
+                &[(-1, -1), (0, -1), (1, -1),  (0, -2), (1, -2), (1, 0), (2, -2), (-1, 0), (-1, -2), (2, -1)],
+
+            (true, false, true) =>
+                &[(1, -1), (1, 0), (1, 1), (2, 0), (2, -1), (0, -1), (2, -2), (0, 1), (1, -2), (2, 1)],
+        };
+
+        //TODO: Try and remove extra references and casting
+        for &(x, y) in neighbours.iter() {
+            let nx = (col as i32 + x) as usize;
+            let ny = (row as i32 + y) as usize;
+            if nx > 0 && nx < self.dim_x && ny > 0 && ny < self.dim_y {
+                neighbourhood.push(self.get_ref(nx, ny));
+            }
+        }
+
         neighbourhood.into_boxed_slice()
     }
+
+/*
+  boolean xgtz = x > 0;
+  boolean ygtz = y > 0;
+  boolean xgty = abs(x) > abs(y);
+  if (xgtz && ygtz && xgty)    return 1;
+  if (xgtz && ygtz && !xgty)   return 2;
+  if (!xgtz && ygtz && !xgty)  return 3;
+  if (!xgtz && ygtz && xgty)   return 4;
+  if (!xgtz && !ygtz && xgty)  return 5;
+  if (!xgtz && !ygtz && !xgty) return 6;
+  if (xgtz && !ygtz && !xgty)  return 7;
+  if (xgtz && !ygtz && xgty)   return 8;
+*/
+
+/*
+Cell[][] cellTable = {
+  /* 0 */ {new Cell(0, 0)},
+  /* 1 */ {new Cell(1, -1), new Cell(1, 0), new Cell(1, 1), new Cell(2, 0), new Cell(2, 1), new Cell(0, 1)},
+  /* 2 */ {new Cell(1, 1), new Cell(0, 1), new Cell(-1, 1), new Cell(0, 2), new Cell(1, 2), new Cell(1, 0)},
+  /* 3 */ {new Cell(1, 1), new Cell(0, 1), new Cell(-1, 1), new Cell(0, 2), new Cell(-1, 2), new Cell(-1, 0)},
+  /* 4 */ {new Cell(-1, 1), new Cell(-1, 0), new Cell(-1, -1), new Cell(-2, 0), new Cell(-2, 1), new Cell(0, 1)},
+  /* 5 */ {new Cell(-1, 1), new Cell(-1, 0), new Cell(-1, -1), new Cell(-2, 0), new Cell(-2, -1), new Cell(0, -1)},
+  /* 6 */ {new Cell(-1, -1), new Cell(0, -1), new Cell(1, -1), new Cell(0, -2), new Cell(-1, -2), new Cell(-1, 0)},
+  /* 7 */ {new Cell(-1, -1), new Cell(0, -1), new Cell(1, -1),  new Cell(0, -2), new Cell(1, -2), new Cell(1, 0)},
+  /* 8 */ {new Cell(1, -1), new Cell(1, 0), new Cell(1, 1), new Cell(2, 0), new Cell(2, -1), new Cell(0, -1)},
+  /* 9 */ {new Cell(0, 0) },
+};
+*/
+
 
     //fn resize(space: &SimulationSpace, desired_size: u32) {
     //    unimplemented!();
     //}
-    
+
     // TODO: Once we do have a more dynamic grid, could implement add/remove?
     // TODO: Implement iterator?
-    //
-    //TODO: method that takes a closure for updating a boid, handles double buffering and so on
+    // TODO: method that takes a closure for updating a boid, handles re-sort and so on
+}
+
+
+fn x_compare(a: &Boid, b: &Boid) -> bool {
+    //(a.position.x > b.position.x) || (a.position.x == b.position.x && a.position.y > b.position.y)
+    //a.position.x > b.position.x
+    a.position.x < b.position.x
+}
+
+fn y_compare(a: &Boid, b: &Boid) -> bool {
+    //(a.position.y > b.position.y) || (a.position.y == a.position.y && a.position.x > b.position.x)
+    //a.position.y > b.position.y
+    a.position.y < b.position.y
 }
 
 //TODO: Class for double buffered grid?
@@ -391,6 +502,42 @@ impl SimulationSpace {
     }
 }
 
+/*
+fn inside_fov(boid: &Boid, other: &Boid) -> bool {
+    //TODO: Is there a fast aproximation for this?  Maybe detect just infront of?
+    //TODO: Some of the things in here can be replaced with cgmath functionality, eg magnitude
+    let v1 = other.position - boid.position;
+    let v2 = boid.velocity;
+
+    // If boids are on top of eachother, they cant see each other
+    if v1.x == 0. && v1.y == 0. { return false; }
+
+    // If boid is stopped, let it see all around
+    if v2.x == 0. && v2.y == 0. { return true; }
+
+
+    let dot = v1.x * v2.x + v1.y * v2.y;
+
+    let v1mag = (v1.x * v1.x + v1.y * v1.y).sqrt();
+    let v2mag = (v2.x * v2.x + v2.y * v2.y).sqrt();
+
+    // This should be a number between -1 and 1, since it's "normalized"
+    let amt = dot / (v1mag * v2mag);
+
+    // But if it's not due to rounding error, then we need to fix it
+    let a = if amt <= -1. {
+        PI
+    } else if amt >= 1. {
+        0.
+    } else {
+        amt.acos()
+    };
+
+    //TODO: Tune this, greater than, less than, how much?
+    a > 0.6
+}
+*/
+
 struct BoidReactor {
     //TODO: This is where the simulation params can go
 }
@@ -402,7 +549,6 @@ impl BoidReactor {
         BoidReactor {}
     }
 
-    //TODO: At some point, use spacial data structure
     //TODO: Break this up a bit
     fn react_to_neighbours(&self, boid: &Boid, others: &[&Boid]) -> Force {
         let mut dodge = Vector2::new(0., 0.);
@@ -410,19 +556,13 @@ impl BoidReactor {
         let mut ali_vel_count = 0;
         let mut coh_pos_acc = Vector2::new(0., 0.);
         let mut coh_pos_count = 0;
-        //TODO: Re-implement this? Think - how it might work with a spacial index
-        //if i != j {
 
-        //TODO: What we actually want is the KNN (within a radius)
-        // this will speed up the sim when boids are closely packed
-
-        let mut n = 0;
         for other in others {
             let from_neighbour = boid.position - other.position;
             let dist_squared = from_neighbour.magnitude2();
+            //if inside_fov(&boid, &other) {
             if dist_squared > 0. {
                 if dist_squared < SEP_RADIUS_2 {
-                    n += 1;
                     let repulse = 1./dist_squared.sqrt();
                     dodge += from_neighbour.normalize_to(repulse);
                 }
@@ -437,6 +577,7 @@ impl BoidReactor {
                 }
             }
         }
+        //TODO: Using MAX_SPEED to steer all the things might not be the most pleasing to look at?
         let mut force = Vector2::new(0., 0.);
         if dodge.magnitude2() > 0. {
             let d_steer = steer(boid, dodge.normalize_to(MAX_SPEED));
