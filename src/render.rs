@@ -24,7 +24,7 @@ static FS_SRC: &'static str = "
     out vec4 frag_colour;
 
     void main() {
-        frag_colour = vec4(0.1, 0.1, 0.1, 1.0);
+        frag_colour = vec4(0.7, 0.7, 0.7, 1.0);
     }";
 
 //TODO: Handle resizing of screen
@@ -83,7 +83,7 @@ impl Renderer {
     }
 
     pub fn render(&self, points: &Vec<Point2<f32>>) {
-        glx::clear_screen(0.8, 0.8, 0.8);
+        glx::clear_screen(0.1, 0.1, 0.1);
         unsafe {
             // This _should_ implement buffer orphaning
             gl::BufferData(gl::ARRAY_BUFFER, 0, ptr::null(), gl::STREAM_DRAW);
