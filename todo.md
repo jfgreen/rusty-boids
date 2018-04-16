@@ -1,6 +1,8 @@
 #Future work
 
-## Implementation improvements:
+## Simulation
+
+### Implementation improvements
 
 - Refactor simulation, current structs don't feel right.
 - Use of "margins" in wrap around code is currently a bit of a hack. 
@@ -13,14 +15,14 @@
 - Lose unnecessary use of Box, e.g in neighbourhood lookup.
 - Sort the neighbourhood lookup arrays into memory access pattern order.
 
-## Ideas:
+### Ideas
 
-### Up next
+#### Up next
 
 - Allow simulation parameters to be supplied via config file
 - Option to support cursor interaction only when pressing down the mouse button.
 
-### Maybe one day
+#### Maybe one day
 
 - Support automatically reloading config file when it changes.
 - Dynamically calculate pleasing default parameters based on window size and resolution.
@@ -39,3 +41,29 @@
         - Sample neighbourhood
         - Add a random "panic" force 
 
+## Renderer
+
+### Implementation improvements
+
+- Handle resizing of screen.
+- Use `hidpi_factor` to scale `gl_PointSize`.
+- Run gl program and shader cleanup on exit
+
+### Ideas
+
+#### Up Next
+
+- Offer more than one renderers/shader.
+- Pretty colours!
+
+#### Maybe one day
+
+- Render velocity somehow?
+- Support switching between different renderers/shaders at run time.
+- Allow running at different resolutions.
+
+
+## Fps Counter
+
+- Rethink how caching works, maybe this doesn't live in `fps` module. 
+- Consider building an ring buffer of `Instant` instead of `Duration`
