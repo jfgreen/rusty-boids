@@ -1,11 +1,11 @@
-#Future work
+# Future work
 
 ## Simulation
 
 ### Implementation improvements
 
 - Refactor simulation, current structs don't feel right.
-- Use of "margins" in wrap around code is currently a bit of a hack. 
+- Use of "margins" in wrap around code is currently a bit of a hack.
 - Make simulation frame independent (fix your time step article is great)
 - Zero copy boids positions into the GPU
 - Use sentinel values in spatial grid to allow exactly the number of requested boids.
@@ -39,7 +39,7 @@
     * When things are busy/crowded/"angry":
         - Use a dynamic neighbourhood range (don't need big range for "calm" flock)
         - Sample neighbourhood
-        - Add a random "panic" force 
+        - Add a random "panic" force
 
 ## Renderer
 
@@ -65,5 +65,19 @@
 
 ## Fps Counter
 
-- Rethink how caching works, maybe this doesn't live in `fps` module. 
+- Rethink how caching works, maybe this doesn't live in `fps` module.
 - Consider building an ring buffer of `Instant` instead of `Duration`
+
+## Main / Application
+
+### Implementation improvements
+
+- Update glutin
+- Slim down size of main loop
+- Reconsider how to process glutin events, current implementation has redundant structs.
+  (Re-implements a lot of window events)
+
+### Ideas
+
+- Allow user to generate default config file / template for further customisation
+
