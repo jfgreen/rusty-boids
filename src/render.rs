@@ -82,7 +82,7 @@ impl Renderer {
 
     }
 
-    pub fn render(&self, points: &Vec<Point2<f32>>) {
+    pub fn render(&self, points: &[Point2<f32>]) {
         glx::clear_screen(0.1, 0.1, 0.1);
         unsafe {
             // This _should_ implement buffer orphaning

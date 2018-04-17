@@ -89,6 +89,7 @@ pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     if config.debug { print_debug_info(&window); }
     let (width, height) = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(width, height, config.boid_count);
+    simulation.randomise();
     let renderer = Renderer::new(width, height);
     renderer.init_pipeline();
     let mut fps_counter = FpsCounter::new();
