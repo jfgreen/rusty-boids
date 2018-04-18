@@ -15,12 +15,14 @@ const SHELL_GAPS: [usize; 9] = [1750, 701, 301, 132, 57, 23, 10, 4, 1];
 
 pub struct FlockingSystemParameters {
     max_speed: f32,
+    mouse_weight: f32,
 }
 
 impl Default for FlockingSystemParameters {
     fn default() -> Self {
         FlockingSystemParameters {
             max_speed: 2.5,
+            mouse_weight: 600.,
         }
     }
 }
@@ -193,15 +195,42 @@ impl FlockingSystem {
     }
 
     fn calculate_forces(&mut self) {
+        for i in 0..self.boid_count {
+            //TODO: Pull out position and velocity here and feed into react funcs
+            let mut force = Vector2::new(0., 0.);
+            //force += self.react_to_neighbours(i);
+            force += self.react_to_mouse(i);
+            self.forces[i] = force;
+        }
+    }
+
+    fn react_to_mouse(&mut self, boid: usize) -> Force {
+        let from_mouse = self.positions[boid] - self.mouse_position;
+        let dist_sq = from_mouse.magnitude2();
+        if dist_sq > 0. {
+            let repulse = self.parameters.mouse_weight / dist_sq;
+            from_mouse.normalize_to(repulse)
+        } else {
+            Force::new(0., 0.)
+        }
+    }
+
+    fn react_to_neighbours(&mut self, boid: usize) -> Force {
 
     }
 
     fn update_velocities(&mut self) {
-
+        for i in 0..self.boid_count {
+            let vel = self.velocities[i] + self.forces[i];
+            self.velocities[i] = limit(vel, self.parameters.max_speed);
+        }
     }
 
     fn update_positions(&mut self) {
-
+        //TODO: Is it noticeably slower to do this in a seperate pass from vel update?
+        for i in 0..self.boid_count {
+            self.positions[i] += self.velocities[i];
+        }
     }
 }
 
@@ -218,4 +247,12 @@ fn calculate_grid_size(width: f32, height: f32, desired_count:usize) -> (usize, 
 
 fn velocity_from_polar(a: f32, m: f32) -> Velocity {
     Basis2::from_angle(Rad(a)).rotate_vector(Vector2::new(0., m))
+}
+
+fn limit(force: Force, max: f32) -> Force {
+    if force.magnitude2() > max*max {
+        force.normalize_to(max)
+    } else {
+        force
+    }
 }
