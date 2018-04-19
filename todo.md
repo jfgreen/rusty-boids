@@ -5,6 +5,7 @@
 ### Implementation improvements
 
 - Refactor simulation, current structs don't feel right.
+- Experiment with both "struct of arrays" and "array of structs" for modeling boids.
 - Use of "margins" in wrap around code is currently a bit of a hack.
 - Make simulation frame independent (fix your time step article is great)
 - Zero copy boids positions into the GPU
@@ -20,6 +21,7 @@
 #### Up next
 
 - Allow simulation parameters to be supplied via config file
+- Have several presets for different kinds of flock
 - Option to support cursor interaction only when pressing down the mouse button.
 
 #### Maybe one day

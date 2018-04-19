@@ -15,14 +15,34 @@ const SHELL_GAPS: [usize; 9] = [1750, 701, 301, 132, 57, 23, 10, 4, 1];
 
 pub struct FlockingSystemParameters {
     max_speed: f32,
+    max_force: f32,
     mouse_weight: f32,
+    sep_radius_2: f32,
+    ali_radius_2: f32,
+    coh_radius_2: f32,
+    sep_weight: f32,
+    ali_weight: f32,
+    coh_weight: f32,
 }
 
+//TODO: Put boid count into parameters
 impl Default for FlockingSystemParameters {
     fn default() -> Self {
         FlockingSystemParameters {
+            // Commented out settings are good for a big flock
             max_speed: 2.5,
+            //max_force: 0.4,
+            max_force: 0.2,
             mouse_weight: 600.,
+            //sep_radius_2: 6_f32.powi(2),
+            sep_radius_2: 20_f32.powi(2),
+            //ali_radius_2: 11.5_f32.powi(2),
+            ali_radius_2: 40_f32.powi(2),
+            //coh_radius_2: 11.5_f32.powi(2),
+            coh_radius_2: 40_f32.powi(2),
+            sep_weight: 1.5,
+            ali_weight: 1.0,
+            coh_weight: 1.0,
         }
     }
 }
@@ -149,7 +169,7 @@ impl FlockingSystem {
                 while j >= gap {
                     let curr_boid = self.query_boid_index(j-gap, row);
                     let curr_pos = self.positions[curr_boid];
-                    if curr_pos.x > temp_pos.x {
+                    if curr_pos.x < temp_pos.x {
                        self.update_boid_index(j, row, curr_boid);
                     } else {
                         break;
@@ -172,7 +192,7 @@ impl FlockingSystem {
                 while j >= gap {
                     let curr_boid = self.query_boid_index(col, j-gap);
                     let curr_pos = self.positions[curr_boid];
-                    if curr_pos.y > temp_pos.y {
+                    if curr_pos.y < temp_pos.y {
                        self.update_boid_index(col, j, curr_boid);
                     } else {
                         break;
@@ -195,17 +215,25 @@ impl FlockingSystem {
     }
 
     fn calculate_forces(&mut self) {
-        for i in 0..self.boid_count {
-            //TODO: Pull out position and velocity here and feed into react funcs
-            let mut force = Vector2::new(0., 0.);
-            //force += self.react_to_neighbours(i);
-            force += self.react_to_mouse(i);
-            self.forces[i] = force;
+        // TODO: Pull out position and velocity here and feed into react funcs?
+        // It seems that maybe array of structs might be better for this use case
+        // TODO: refactor react code to avoid redundant looking up of things
+        for row in 0..self.dim_y {
+            for col in 0..self.dim_x {
+                let boid = self.query_boid_index(col, row);
+                let current_vel = self.velocities[boid];
+                let current_pos = self.positions[boid];
+                let mut force = Vector2::new(0., 0.);
+                let neighbours = self.find_neighbours(col, row, current_vel);
+                force += self.react_to_neighbours(current_pos, current_vel, &neighbours);
+                force += self.react_to_mouse(current_pos);
+                self.forces[boid] = force;
+            }
         }
     }
 
-    fn react_to_mouse(&mut self, boid: usize) -> Force {
-        let from_mouse = self.positions[boid] - self.mouse_position;
+    fn react_to_mouse(&mut self, position: Position) -> Force {
+        let from_mouse = position - self.mouse_position;
         let dist_sq = from_mouse.magnitude2();
         if dist_sq > 0. {
             let repulse = self.parameters.mouse_weight / dist_sq;
@@ -215,9 +243,105 @@ impl FlockingSystem {
         }
     }
 
-    fn react_to_neighbours(&mut self, boid: usize) -> Force {
+    // TODO: See if we can lose box?
+    fn find_neighbours(&self, col: usize, row: usize, vel: Velocity) -> Box<[usize]> {
+        let mut neighbourhood = vec![];
 
+        //TODO: Sort the neighbours below into memory access patter order
+        //TODO: Could try other "kernals"
+
+        //TODO Remove use of i32, use usize instead
+        let neighbours: &[(i32, i32)] = match (vel.x > 0., vel.y > 0., vel.x.abs() > vel.y.abs() ) {
+            (true, true, true) =>
+                &[(1, -1), (1, 0), (1, 1), (2, 0), (2, 1), (0, 1), (2, 2), (0, -1), (2, -1), (1, 2)],
+
+            (true, true, false) =>
+                &[(1, 1), (0, 1), (-1, 1), (0, 2), (1, 2), (1, 0), (2, 2), (-1, 0), (2, 1), (-1, 2)],
+
+            (false, true, false) =>
+                &[(1, 1), (0, 1), (-1, 1), (0, 2), (-1, 2), (-1, 0), (-2, 2), (1, 0), (1, 2), (-2, 1)],
+
+            (false, true, true) =>
+                &[(-1, 1), (-1, 0), (-1, -1), (-2, 0), (-2, 1), (0, 1), (-2, 2), (0, -1), (-1, 2), (-2, -1)],
+
+            (false, false, true) =>
+                &[(-1, 1), (-1, 0), (-1, -1), (-2, 0), (-2, -1), (0, -1), (-2, -2), (0, 1), (-2, 1), (-1, -2)],
+
+            (false, false, false) =>
+                &[(-1, -1), (0, -1), (1, -1), (0, -2), (-1, -2), (-1, 0), (-2, -2), (1, 0), (-2, -1), (1, -2)],
+
+            (true, false, false) =>
+                &[(-1, -1), (0, -1), (1, -1),  (0, -2), (1, -2), (1, 0), (2, -2), (-1, 0), (-1, -2), (2, -1)],
+
+            (true, false, true) =>
+                &[(1, -1), (1, 0), (1, 1), (2, 0), (2, -1), (0, -1), (2, -2), (0, 1), (1, -2), (2, 1)],
+        };
+
+        //TODO: Try and remove extra references and casting
+        for &(x, y) in neighbours.iter() {
+            let nx = (col as i32 + x) as usize;
+            let ny = (row as i32 + y) as usize;
+            if nx > 0 && nx < self.dim_x && ny > 0 && ny < self.dim_y {
+                let neighbour = self.grid[nx + (ny * self.dim_x)];
+                neighbourhood.push(neighbour);
+            }
+        }
+
+        neighbourhood.into_boxed_slice()
     }
+
+    fn react_to_neighbours(&mut self, pos: Position, vel: Velocity, neighbours: &[usize]) -> Force {
+        let mut dodge = Vector2::new(0., 0.);
+        let mut ali_vel_acc = Vector2::new(0., 0.);
+        let mut ali_vel_count = 0;
+        let mut coh_pos_acc = Vector2::new(0., 0.);
+        let mut coh_pos_count = 0;
+
+        for &other in neighbours {
+            let other_pos = self.positions[other];
+            let other_vel = self.velocities[other];
+            let from_neighbour = pos - other_pos;
+            let dist_squared = from_neighbour.magnitude2();
+            if dist_squared > 0. {
+                if dist_squared < self.parameters.sep_radius_2 {
+                    let repulse = 1./dist_squared.sqrt();
+                    dodge += from_neighbour.normalize_to(repulse);
+                }
+                if dist_squared < self.parameters.ali_radius_2 {
+                    ali_vel_acc += other_vel;
+                    ali_vel_count += 1;
+                }
+                if dist_squared < self.parameters.coh_radius_2 {
+                    coh_pos_acc.x += other_pos.x;
+                    coh_pos_acc.y += other_pos.y;
+                    coh_pos_count += 1;
+                }
+            }
+        }
+        //TODO: Using MAX_SPEED to steer all the things might not be the most pleasing to look at?
+        let mut force = Vector2::new(0., 0.);
+        if dodge.magnitude2() > 0. {
+            let target_d_vel = dodge.normalize_to(self.parameters.max_speed);
+            let d_steer = limit(target_d_vel - vel, self.parameters.max_force);
+            force += self.parameters.sep_weight * d_steer;
+        }
+        if ali_vel_count > 0 {
+            let align = ali_vel_acc / ali_vel_count as f32;
+            let target_a_vel = align.normalize_to(self.parameters.max_speed);
+            let a_steer = limit(target_a_vel - vel, self.parameters.max_force);
+            force += self.parameters.ali_weight * a_steer;
+        }
+        if coh_pos_count > 0 {
+            let avg_pos = coh_pos_acc / coh_pos_count as f32;
+            let boid_pos = Vector2::new(pos.x, pos.y);
+            let cohesion = avg_pos - boid_pos;
+            let target_c_vel = cohesion.normalize_to(self.parameters.max_speed);
+            let c_steer = limit(target_c_vel - vel, self.parameters.max_force);
+            force += self.parameters.coh_weight * c_steer;
+        }
+        force
+    }
+
 
     fn update_velocities(&mut self) {
         for i in 0..self.boid_count {
@@ -229,7 +353,13 @@ impl FlockingSystem {
     fn update_positions(&mut self) {
         //TODO: Is it noticeably slower to do this in a seperate pass from vel update?
         for i in 0..self.boid_count {
-            self.positions[i] += self.velocities[i];
+            let mut new_pos = self.positions[i] + self.velocities[i];
+            //FIXME: horrible hack, find a better way
+            if new_pos.x <= 0. { new_pos.x = self.width - 0.1 };
+            if new_pos.y <= 0. { new_pos.y = self.height - 0.1 };
+            if new_pos.x >= self.width { new_pos.x = 0.1 };
+            if new_pos.y >= self.height { new_pos.y = 0.1 };
+            self.positions[i] = new_pos
         }
     }
 }
