@@ -25,21 +25,19 @@ pub struct FlockingSystemParameters {
     coh_weight: f32,
 }
 
-//TODO: Put boid count into parameters
 impl Default for FlockingSystemParameters {
     fn default() -> Self {
         FlockingSystemParameters {
-            // Commented out settings are good for a big flock
             max_speed: 2.5,
-            //max_force: 0.4,
-            max_force: 0.2,
+            max_force: 0.4,
+            //max_force: 0.2,
             mouse_weight: 600.,
-            //sep_radius_2: 6_f32.powi(2),
-            sep_radius_2: 20_f32.powi(2),
-            //ali_radius_2: 11.5_f32.powi(2),
-            ali_radius_2: 40_f32.powi(2),
-            //coh_radius_2: 11.5_f32.powi(2),
-            coh_radius_2: 40_f32.powi(2),
+            sep_radius_2: 6_f32.powi(2),
+            //sep_radius_2: 20_f32.powi(2),
+            ali_radius_2: 11.5_f32.powi(2),
+            //ali_radius_2: 40_f32.powi(2),
+            coh_radius_2: 11.5_f32.powi(2),
+            //coh_radius_2: 40_f32.powi(2),
             sep_weight: 1.5,
             ali_weight: 1.0,
             coh_weight: 1.0,
@@ -57,7 +55,7 @@ pub struct FlockingSystem {
     positions: Vec<Position>,
     velocities: Vec<Velocity>,
     forces: Vec<Force>,
-    parameters: FlockingSystemParameters,
+    params: FlockingSystemParameters,
     mouse_position: Position,
     rng: ThreadRng,
 }
@@ -84,7 +82,7 @@ impl FlockingSystem {
             positions: vec![Position::new(0., 0.); boid_count],
             velocities: vec![Velocity::new(0., 0.); boid_count],
             forces: vec![Force::new(0., 0.); boid_count],
-            parameters: FlockingSystemParameters::default(),
+            params: FlockingSystemParameters::default(),
             mouse_position: Position::new(0., 0.),
             rng: rand::thread_rng(),
         }
@@ -139,7 +137,7 @@ impl FlockingSystem {
     }
 
     fn randomise_velocities(&mut self) {
-        let vel_space = Range::new(0., self.parameters.max_speed);
+        let vel_space = Range::new(0., self.params.max_speed);
         let ang_space = Range::new(0., TWO_PI);
         for i in 0..self.boid_count {
             let a = ang_space.ind_sample(&mut self.rng);
@@ -236,7 +234,7 @@ impl FlockingSystem {
         let from_mouse = position - self.mouse_position;
         let dist_sq = from_mouse.magnitude2();
         if dist_sq > 0. {
-            let repulse = self.parameters.mouse_weight / dist_sq;
+            let repulse = self.params.mouse_weight / dist_sq;
             from_mouse.normalize_to(repulse)
         } else {
             Force::new(0., 0.)
@@ -303,15 +301,15 @@ impl FlockingSystem {
             let from_neighbour = pos - other_pos;
             let dist_squared = from_neighbour.magnitude2();
             if dist_squared > 0. {
-                if dist_squared < self.parameters.sep_radius_2 {
+                if dist_squared < self.params.sep_radius_2 {
                     let repulse = 1./dist_squared.sqrt();
                     dodge += from_neighbour.normalize_to(repulse);
                 }
-                if dist_squared < self.parameters.ali_radius_2 {
+                if dist_squared < self.params.ali_radius_2 {
                     ali_vel_acc += other_vel;
                     ali_vel_count += 1;
                 }
-                if dist_squared < self.parameters.coh_radius_2 {
+                if dist_squared < self.params.coh_radius_2 {
                     coh_pos_acc.x += other_pos.x;
                     coh_pos_acc.y += other_pos.y;
                     coh_pos_count += 1;
@@ -321,23 +319,23 @@ impl FlockingSystem {
         //TODO: Using MAX_SPEED to steer all the things might not be the most pleasing to look at?
         let mut force = Vector2::new(0., 0.);
         if dodge.magnitude2() > 0. {
-            let target_d_vel = dodge.normalize_to(self.parameters.max_speed);
-            let d_steer = limit(target_d_vel - vel, self.parameters.max_force);
-            force += self.parameters.sep_weight * d_steer;
+            let target_d_vel = dodge.normalize_to(self.params.max_speed);
+            let d_steer = limit(target_d_vel - vel, self.params.max_force);
+            force += self.params.sep_weight * d_steer;
         }
         if ali_vel_count > 0 {
             let align = ali_vel_acc / ali_vel_count as f32;
-            let target_a_vel = align.normalize_to(self.parameters.max_speed);
-            let a_steer = limit(target_a_vel - vel, self.parameters.max_force);
-            force += self.parameters.ali_weight * a_steer;
+            let target_a_vel = align.normalize_to(self.params.max_speed);
+            let a_steer = limit(target_a_vel - vel, self.params.max_force);
+            force += self.params.ali_weight * a_steer;
         }
         if coh_pos_count > 0 {
             let avg_pos = coh_pos_acc / coh_pos_count as f32;
             let boid_pos = Vector2::new(pos.x, pos.y);
             let cohesion = avg_pos - boid_pos;
-            let target_c_vel = cohesion.normalize_to(self.parameters.max_speed);
-            let c_steer = limit(target_c_vel - vel, self.parameters.max_force);
-            force += self.parameters.coh_weight * c_steer;
+            let target_c_vel = cohesion.normalize_to(self.params.max_speed);
+            let c_steer = limit(target_c_vel - vel, self.params.max_force);
+            force += self.params.coh_weight * c_steer;
         }
         force
     }
@@ -346,7 +344,7 @@ impl FlockingSystem {
     fn update_velocities(&mut self) {
         for i in 0..self.boid_count {
             let vel = self.velocities[i] + self.forces[i];
-            self.velocities[i] = limit(vel, self.parameters.max_speed);
+            self.velocities[i] = limit(vel, self.params.max_speed);
         }
     }
 
