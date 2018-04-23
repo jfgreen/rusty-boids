@@ -143,6 +143,14 @@ impl ShaderProgram {
 
 }
 
+impl Drop for ShaderProgram {
+
+    fn drop(&mut self) {
+        unsafe { gl::DeleteShader(self.program_id); }
+    }
+}
+
+
 unsafe fn compile_shader(src: &str, shader_type: GLenum) -> Result<GLuint, ShaderError> {
     let shader = gl::CreateShader(shader_type);
 

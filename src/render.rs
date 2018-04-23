@@ -6,6 +6,7 @@ use gl::types::*;
 use cgmath::{Matrix, Matrix3, Point2};
 
 use glx;
+use glx::ShaderProgram;
 
 // Shader sources
 static VS_SRC: &'static str = "
@@ -34,19 +35,22 @@ static FS_SRC: &'static str = "
 
 pub struct Renderer {
     transform: Matrix3<f32>,
+    program: ShaderProgram,
 }
 
 impl Renderer {
     pub fn new(width: f32, height: f32) -> Renderer {
+        let program = glx::ShaderProgram::new(VS_SRC, FS_SRC)
+            .expect("Problem creating shader program");
+
+        //TODO: Extract vao and vbo into glx helper classes and construct here
         Renderer {
             transform: glx::vtx_transform_2d(width, height),
+            program,
         }
     }
 
     pub fn init_pipeline(&self) {
-        let program = glx::ShaderProgram::new(VS_SRC, FS_SRC)
-            .expect("Problem creating shader program");
-
         let mut vao = 0;
         let mut vbo = 0;
 
@@ -58,15 +62,15 @@ impl Renderer {
             // so bind/activate them just the once here
             gl::BindVertexArray(vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            program.activate();
+            self.program.activate();
 
             // Set the tranform uniform
-            let trans_loc = program.get_uniform_location("transform")
+            let trans_loc = self.program.get_uniform_location("transform")
                 .expect("Could not find uniform");
             gl::UniformMatrix3fv(trans_loc, 1, gl::FALSE, self.transform.as_ptr());
 
             // Specify the layout of the vertex data
-            let pos_loc = program.get_atrib_location("position")
+            let pos_loc = self.program.get_atrib_location("position")
                 .expect("could not find position");
             gl::EnableVertexAttribArray(pos_loc);
             gl::VertexAttribPointer(pos_loc,
@@ -101,9 +105,6 @@ impl Renderer {
     /*
     pub fn cleanup(&self) {
         unsafe {
-            gl::DeleteProgram(self.program);
-            gl::DeleteShader(self.vtx_shader);
-            gl::DeleteShader(self.frag_shader);
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteVertexArrays(1, &self.vao);
         }
