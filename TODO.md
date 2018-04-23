@@ -12,9 +12,11 @@
 - Use sentinel values in spatial grid to allow exactly the number of requested boids.
 - Speed up computation with a parallel collection library like Rayon.
 - Dynamically select correct shell gap starting size.
-- Use a fast number swap trick when sorting grid.
 - Lose unnecessary use of Box, e.g in neighbourhood lookup.
 - Sort the neighbourhood lookup arrays into memory access pattern order.
+- Really dig down into runtime perf - use testing tools to find hotspots, bad caching
+- Dont recalculate the forces of each boid every frame, just enough of them.
+  (expose the amount/strategy for doing this to the user?)
 
 ### Ideas
 
@@ -74,7 +76,9 @@
 
 ### Implementation improvements
 
+- Dont rely on vsync to keep 60fps
 - Update glutin
+- Apply cargo fmt
 - Slim down size of main loop
 - Reconsider how to process glutin events, current implementation has redundant structs.
   (Re-implements a lot of window events)
