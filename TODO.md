@@ -8,7 +8,6 @@
 - Experiment with both "struct of arrays" and "array of structs" for modeling boids.
 - Use of "margins" in wrap around code is currently a bit of a hack.
 - Make simulation frame independent (fix your time step article is great)
-- Zero copy boids positions into the GPU
 - Use sentinel values in spatial grid to allow exactly the number of requested boids.
 - Speed up computation with a parallel collection library like Rayon.
 - Dynamically select correct shell gap starting size.
@@ -51,7 +50,6 @@
 
 - Handle resizing of screen.
 - Use `hidpi_factor` to scale `gl_PointSize`.
-- Run gl program and shader cleanup on exit
 
 ### Ideas
 
