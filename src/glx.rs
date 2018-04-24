@@ -86,7 +86,29 @@ impl error::Error for ShaderError {
     }
 }
 
-pub struct ShaderProgram{
+pub struct Buffer {
+    buffer_id: GLuint,
+}
+
+impl Buffer {
+    pub fn new() -> Buffer {
+        let mut buffer_id = 0;
+        unsafe{ gl::GenBuffers(1, &mut buffer_id); }
+        Buffer{ buffer_id }
+    }
+
+    pub fn bind(&self, target: GLenum) {
+        unsafe{ gl::BindBuffer(target, self.buffer_id); }
+    }
+}
+
+impl Drop for Buffer {
+    fn drop(&mut self) {
+        unsafe{  gl::DeleteBuffers(1, &self.buffer_id); }
+    }
+}
+
+pub struct ShaderProgram {
     program_id: GLuint,
 }
 

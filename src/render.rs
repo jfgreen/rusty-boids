@@ -6,7 +6,7 @@ use gl::types::*;
 use cgmath::{Matrix, Matrix3, Point2};
 
 use glx;
-use glx::ShaderProgram;
+use glx::{ShaderProgram, Buffer};
 
 // Shader sources
 static VS_SRC: &'static str = "
@@ -36,32 +36,32 @@ static FS_SRC: &'static str = "
 pub struct Renderer {
     transform: Matrix3<f32>,
     program: ShaderProgram,
+    vbo: Buffer,
 }
 
 impl Renderer {
     pub fn new(width: f32, height: f32) -> Renderer {
-        let program = glx::ShaderProgram::new(VS_SRC, FS_SRC)
+        let program = ShaderProgram::new(VS_SRC, FS_SRC)
             .expect("Problem creating shader program");
 
-        //TODO: Extract vao and vbo into glx helper classes and construct here
+        let vbo = Buffer::new();
+
+        //TODO: Extract vao into glx helper and construct here
         Renderer {
             transform: glx::vtx_transform_2d(width, height),
             program,
+            vbo,
         }
     }
 
     pub fn init_pipeline(&self) {
         let mut vao = 0;
-        let mut vbo = 0;
 
         unsafe {
             gl::GenVertexArrays(1, &mut vao);
-            gl::GenBuffers(1, &mut vbo);
 
-            // We only use a single program, vbo and vao,
-            // so bind/activate them just the once here
             gl::BindVertexArray(vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            self.vbo.bind(gl::ARRAY_BUFFER);
             self.program.activate();
 
             // Set the tranform uniform
@@ -105,7 +105,6 @@ impl Renderer {
     /*
     pub fn cleanup(&self) {
         unsafe {
-            gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteVertexArrays(1, &self.vao);
         }
     }
