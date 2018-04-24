@@ -6,7 +6,7 @@ use gl::types::*;
 use cgmath::{Matrix, Matrix3, Point2};
 
 use glx;
-use glx::{ShaderProgram, Buffer};
+use glx::{ShaderProgram, VertexArray, Buffer};
 
 // Shader sources
 static VS_SRC: &'static str = "
@@ -36,6 +36,7 @@ static FS_SRC: &'static str = "
 pub struct Renderer {
     transform: Matrix3<f32>,
     program: ShaderProgram,
+    vao: VertexArray,
     vbo: Buffer,
 }
 
@@ -44,23 +45,18 @@ impl Renderer {
         let program = ShaderProgram::new(VS_SRC, FS_SRC)
             .expect("Problem creating shader program");
 
-        let vbo = Buffer::new();
-
-        //TODO: Extract vao into glx helper and construct here
         Renderer {
             transform: glx::vtx_transform_2d(width, height),
             program,
-            vbo,
+            vao: VertexArray::new(),
+            vbo: Buffer::new(),
         }
     }
 
     pub fn init_pipeline(&self) {
-        let mut vao = 0;
 
         unsafe {
-            gl::GenVertexArrays(1, &mut vao);
-
-            gl::BindVertexArray(vao);
+            self.vao.bind();
             self.vbo.bind(gl::ARRAY_BUFFER);
             self.program.activate();
 
@@ -101,13 +97,5 @@ impl Renderer {
         }
     }
 
-    //TODO: Cleanup, something like:
-    /*
-    pub fn cleanup(&self) {
-        unsafe {
-            gl::DeleteVertexArrays(1, &self.vao);
-        }
-    }
-    */
 }
 

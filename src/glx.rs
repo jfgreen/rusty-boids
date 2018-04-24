@@ -86,6 +86,31 @@ impl error::Error for ShaderError {
     }
 }
 
+pub struct VertexArray {
+    vertex_array_id: GLuint,
+
+}
+
+impl VertexArray {
+    pub fn new() -> VertexArray {
+        let mut vertex_array_id = 0;
+        unsafe{ gl::GenVertexArrays(1, &mut vertex_array_id);}
+        VertexArray { vertex_array_id }
+    }
+
+    pub fn bind(&self) {
+        unsafe{ gl::BindVertexArray(self.vertex_array_id);}
+    }
+}
+
+impl Drop for VertexArray {
+
+    fn drop(&mut self) {
+        unsafe{ gl::DeleteVertexArrays(1, &self.vertex_array_id);}
+    }
+
+}
+
 pub struct Buffer {
     buffer_id: GLuint,
 }
