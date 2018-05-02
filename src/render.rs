@@ -5,8 +5,7 @@ use gl;
 use gl::types::*;
 use cgmath::{Matrix, Matrix3, Point2};
 
-use glx;
-use glx::{ShaderProgram, VertexArray, Buffer};
+use glx::{self, ShaderProgram, VertexArray, Buffer};
 
 // Shader sources
 static VS_SRC: &'static str = "

@@ -2,8 +2,8 @@ use std::fmt;
 use std::error;
 
 use gl;
-use glutin;
 use glutin::{
+    self,
     GlRequest, Api, GlProfile,
     CreationError, ContextError,
     EventsLoop, WindowBuilder, ContextBuilder,
@@ -71,11 +71,22 @@ impl From<ContextError> for SimulatorError {
 }
 
 pub struct SimulationConfig {
-    pub boid_count: usize,
+    pub boid_count: u32,
     pub window_size: WindowSize,
     pub debug: bool,
 }
 
+impl Default for SimulationConfig {
+    fn default() -> SimulationConfig {
+        SimulationConfig {
+            boid_count: 1000,
+            window_size: WindowSize::Dimensions((800, 800)),
+            debug: false,
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
 pub enum WindowSize {
     Fullscreen,
     Dimensions((u32, u32)),
@@ -191,6 +202,7 @@ fn build_window(events_loop: &EventsLoop, window_size: &WindowSize)
     )?)
 }
 
+// TODO: This could be a glx helper
 fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
     unsafe { window.make_current()?; }
     gl::load_with(|symbol| {

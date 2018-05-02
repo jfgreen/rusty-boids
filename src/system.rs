@@ -3,8 +3,7 @@ use std::f32::consts::PI;
 use cgmath::{Point2, Vector2, InnerSpace};
 use cgmath::{Basis2, Rad, Rotation, Rotation2};
 use rand::distributions::{IndependentSample, Range};
-use rand::ThreadRng;
-use rand;
+use rand::{self, ThreadRng};
 
 type Position = Point2<f32>;
 type Velocity = Vector2<f32>;
@@ -63,7 +62,7 @@ pub struct FlockingSystem {
 impl FlockingSystem {
     // TODO: Allow FlockingSystemParameters to be passed in
     // TODO: Use builder pattern for FlockingSystem
-    pub fn new(width: f32, height: f32, req_boid_count: usize) -> Self {
+    pub fn new(width: f32, height: f32, req_boid_count: u32) -> Self {
 
         let (dim_x, dim_y) = calculate_grid_size(width, height, req_boid_count);
         let grid_capacity = dim_x * dim_y;
@@ -362,15 +361,15 @@ impl FlockingSystem {
     }
 }
 
-fn calculate_grid_size(width: f32, height: f32, desired_count:usize) -> (usize, usize) {
+fn calculate_grid_size(width: f32, height: f32, desired_count: u32) -> (usize, usize) {
     let aspect_ratio = height / width;
-    let mut dim_x = 0;
-    let mut dim_y = 0;
+    let mut dim_x: u32 = 0;
+    let mut dim_y: u32 = 0;
     while dim_x * dim_y < desired_count {
         dim_x +=1;
-        dim_y = (dim_x as f32 * aspect_ratio) as usize;
+        dim_y = (dim_x as f32 * aspect_ratio) as u32;
     }
-    (dim_x, dim_y)
+    (dim_x as usize, dim_y as usize)
 }
 
 fn velocity_from_polar(a: f32, m: f32) -> Velocity {
