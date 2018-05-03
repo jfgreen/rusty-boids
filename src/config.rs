@@ -41,15 +41,19 @@ impl ConfigBuilder {
 
     fn apply(&mut self, uc: &UserConfig) {
         let c = &mut self.config;
-        if let Some(count) = uc.boid_count { c.boid_count = count }
-        if let Some(size) = uc.window_size { c.window_size = size }
-        if let Some(debug) = uc.debug { c.debug = debug }
+        merge(&mut c.boid_count,  &uc.boid_count);
+        merge(&mut c.window_size, &uc.window_size);
+        merge(&mut c.debug,       &uc.debug);
     }
 
     fn build(self) -> SimulationConfig {
         self.config
     }
 
+}
+
+fn merge<T>(existing: &mut T, candidate: &Option<T>) where T: Copy {
+    *existing = candidate.unwrap_or(*existing);
 }
 
 
@@ -148,7 +152,6 @@ impl UserConfig {
 
     fn from_cli_args(args: &ArgMatches<'static>) -> Result<Self, ConfigError> {
 
-        // TODO: Could look into using structopt
         let window_size = if args.is_present(FULLSCREEN_ARG) {
             Some(WindowSize::Fullscreen)
         } else if args.is_present(WINDOW_SIZE_ARG) {
