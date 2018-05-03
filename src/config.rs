@@ -161,17 +161,14 @@ impl UserConfig {
             None
         };
 
-
-        let boid_count = if args.is_present(BOID_COUNT_ARG) {
-            Some(value_t!(args, BOID_COUNT_ARG, u32)?)
-        } else {
-            None
+        let boid_count = match args.is_present(BOID_COUNT_ARG) {
+            true  => Some(value_t!(args, BOID_COUNT_ARG, u32)?),
+            _     => None,
         };
 
-        let debug = if args.is_present(DEBUG_ARG) {
-            Some(true)
-        } else {
-            None
+        let debug = match args.is_present(DEBUG_ARG) {
+            true  => Some(true),
+            _     => None,
         };
 
         Ok(UserConfig{
