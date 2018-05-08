@@ -8,7 +8,6 @@ use boids::{SimulationConfig, WindowSize};
 
 use clap::{self, App, Arg, ArgMatches};
 use clap::ErrorKind::{VersionDisplayed, HelpDisplayed};
-use serde::de::Deserialize;
 use toml;
 
 const CONFIG_ARG: &str = "config";
@@ -16,6 +15,7 @@ const WINDOW_SIZE_ARG: &str = "size";
 const FULLSCREEN_ARG: &str = "fullscreen";
 const BOID_COUNT_ARG: &str = "boids";
 const DEBUG_ARG: &str = "debug";
+
 
 pub fn build_config() -> Result<SimulationConfig, ConfigError> {
     let mut builder = ConfigBuilder::new();
@@ -62,7 +62,6 @@ fn merge<T>(existing: &mut T, candidate: Option<T>)  {
     }
 }
 
-//TODO: Would be cool if there was an arg to print / generate an example config file
 fn parse_cli_args() -> Result<ArgMatches<'static>, clap::Error> {
     let args = App::new("boid-simulator")
         .version("0.1")
@@ -95,12 +94,13 @@ fn parse_cli_args() -> Result<ArgMatches<'static>, clap::Error> {
              .help("print opengl debug information"))
         .get_matches_safe();
 
-    //TODO: Cleaner as an if let statement?
-    match args {
-        Err(ref err) if (err.kind == VersionDisplayed) |
-                        (err.kind == HelpDisplayed) => err.exit(),
-        _ => args
+    if let Err(ref err) = args {
+        if err.kind == VersionDisplayed || err.kind == HelpDisplayed {
+            err.exit();  // Exit and print help message
+        }
     }
+    args
+
 }
 
 
@@ -152,14 +152,14 @@ impl ConfigError {
 
 
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct UserConfig {
     boid_count: Option<u32>,
     debug: Option<bool>,
     window: Option<WindowConfig>,
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Copy, Clone, Deserialize, Default)]
 struct WindowConfig {
     size: Option<(u32, u32)>,
     fullscreen: Option<bool>,
@@ -177,38 +177,28 @@ impl UserConfig {
 
     fn from_cli_args(args: &ArgMatches<'static>) -> Result<Self, ConfigError> {
 
-        //TODO: Make this method a bit cleaner
-        let fullscreen = match args.is_present(FULLSCREEN_ARG) {
-            true  => Some(true),
-            false => None,
+        let mut user_conf = UserConfig::default();
+        let mut window_conf = WindowConfig::default();
+
+        if args.is_present(BOID_COUNT_ARG) {
+            user_conf.boid_count = Some(value_t!(args, BOID_COUNT_ARG, u32)?);
         };
 
-        let size = match args.is_present(WINDOW_SIZE_ARG) {
-            true => {
-                let size = values_t!(args, WINDOW_SIZE_ARG, u32)?;
-                Some((size[0], size[1]))
-            }
-            false => None,
+        if args.is_present(DEBUG_ARG) {
+            user_conf.debug = Some(true);
         };
 
-        let boid_count = match args.is_present(BOID_COUNT_ARG) {
-            true  => Some(value_t!(args, BOID_COUNT_ARG, u32)?),
-            _     => None,
+        if args.is_present(FULLSCREEN_ARG) {
+            window_conf.fullscreen = Some(true);
         };
 
-        let debug = match args.is_present(DEBUG_ARG) {
-            true  => Some(true),
-            _     => None,
+        if args.is_present(WINDOW_SIZE_ARG) {
+            let size = values_t!(args, WINDOW_SIZE_ARG, u32)?;
+            window_conf.size = Some((size[0], size[1]));
         };
 
-        let window = Some(WindowConfig{fullscreen, size});
-
-        Ok(UserConfig{
-            boid_count,
-            debug,
-            window,
-            ..Default::default()
-        })
+        user_conf.window = Some(window_conf);
+        Ok(user_conf)
     }
 
     fn window_size(&self) -> Option<WindowSize> {
@@ -216,16 +206,6 @@ impl UserConfig {
            Some(WindowConfig{ fullscreen:Some(true), ..}) => Some(WindowSize::Fullscreen),
            Some(WindowConfig{ size:Some(dims), ..}) => Some(WindowSize::Dimensions(dims)),
            _ => None,
-        }
-    }
-}
-
-impl Default for UserConfig {
-    fn default() -> UserConfig {
-        UserConfig {
-            boid_count: None,
-            window: None,
-            debug: None,
         }
     }
 }
