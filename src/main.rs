@@ -7,6 +7,11 @@ extern crate toml;
 #[macro_use]
 extern crate clap;
 
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+
+
 mod boids;
 mod glx;
 mod render;

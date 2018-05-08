@@ -86,7 +86,6 @@ impl Default for SimulationConfig {
     }
 }
 
-#[derive(Copy, Clone)]
 pub enum WindowSize {
     Fullscreen,
     Dimensions((u32, u32)),

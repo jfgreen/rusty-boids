@@ -8,5 +8,10 @@ gl = "0.6.2"
 glutin = "0.12.0"
 cgmath = "0.15.0"
 rand = "0.3.16"
-clap = "2.29.0"
 toml = "0.4"
+serde = "1.0.45"
+serde_derive = "1.0.45"
+
+[dependencies.clap]
+version = "2.29.0"
+default-features = false
