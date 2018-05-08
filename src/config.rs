@@ -134,11 +134,11 @@ impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ConfigError::Io(ref err) =>
-                write!(f, "Could not read config:\n\n{}", err),
+                write!(f, "Could not read config: {}", err),
             ConfigError::Clap(ref err) =>
-                write!(f, "Could not parse arguments:\n\n{}", err),
+                write!(f, "{}", err),
             ConfigError::Toml(ref err) =>
-                write!(f, "Could not parse toml:\n\n{}", err),
+                write!(f, "Could not parse toml: {}", err),
         }
     }
 }
