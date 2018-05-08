@@ -1,5 +1,6 @@
 use std::fmt;
 use std::error;
+use std::process;
 
 use gl;
 use glutin::{
@@ -67,6 +68,13 @@ impl From<CreationError> for SimulatorError {
 impl From<ContextError> for SimulatorError {
     fn from(err: ContextError) -> SimulatorError {
         SimulatorError::GlContext(err)
+    }
+}
+
+impl SimulatorError {
+    pub fn exit(&self) -> ! {
+        println!("{}", self);
+        process::exit(1);
     }
 }
 

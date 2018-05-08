@@ -22,17 +22,14 @@ mod config;
 use config::build_config;
 use boids::run_simulation;
 
-use std::process;
-
 
 fn main() {
     let config = build_config().unwrap_or_else(|err| {
         err.exit()
     });
+
     run_simulation(&config).unwrap_or_else(|err| {
-        //TODO: Have an err.exit()
-        println!("Problem running simulation, {}", err);
-        process::exit(1);
+        err.exit()
     });
 }
 
