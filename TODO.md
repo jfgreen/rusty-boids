@@ -4,7 +4,7 @@
 
 ### Implementation improvements
 
-- Refactor simulation, current structs don't feel right.
+- Think of better name for project!
 - Experiment with both "struct of arrays" and "array of structs" for modeling boids.
 - Use of "margins" in wrap around code is currently a bit of a hack.
 - Make simulation frame independent (fix your time step article is great)
@@ -16,6 +16,7 @@
 - Really dig down into runtime perf - use testing tools to find hotspots, bad caching
 - Dont recalculate the forces of each boid every frame, just enough of them.
   (expose the amount/strategy for doing this to the user?)
+- Partition the boids and spread the update calculation over several frames.
 
 ### Ideas
 
@@ -80,8 +81,3 @@
 - Slim down size of main loop
 - Reconsider how to process glutin events, current implementation has redundant structs.
   (Re-implements a lot of window events)
-
-### Ideas
-
-- Allow user to generate default config file / template for further customisation
-
