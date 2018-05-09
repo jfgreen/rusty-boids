@@ -12,7 +12,12 @@ type Force = Vector2<f32>;
 const TWO_PI: f32 = 2. * PI;
 const SHELL_GAPS: [usize; 9] = [1750, 701, 301, 132, 57, 23, 10, 4, 1];
 
-pub struct FlockingSystemParameters {
+pub struct FlockingSystemConfig {
+    boid_count: u32,
+    physics_params: PhysicsParameters,
+}
+
+pub struct PhysicsParameters {
     max_speed: f32,
     max_force: f32,
     mouse_weight: f32,
@@ -24,9 +29,9 @@ pub struct FlockingSystemParameters {
     coh_weight: f32,
 }
 
-impl Default for FlockingSystemParameters {
+impl Default for PhysicsParameters {
     fn default() -> Self {
-        FlockingSystemParameters {
+        PhysicsParameters {
             max_speed: 2.5,
             max_force: 0.4,
             //max_force: 0.2,
@@ -54,17 +59,17 @@ pub struct FlockingSystem {
     positions: Vec<Position>,
     velocities: Vec<Velocity>,
     forces: Vec<Force>,
-    params: FlockingSystemParameters,
+    params: PhysicsParameters,
     mouse_position: Position,
     rng: ThreadRng,
 }
 
 impl FlockingSystem {
-    // TODO: Allow FlockingSystemParameters to be passed in
-    // TODO: Use builder pattern for FlockingSystem
-    pub fn new(width: f32, height: f32, req_boid_count: u32) -> Self {
 
-        let (dim_x, dim_y) = calculate_grid_size(width, height, req_boid_count);
+    pub fn new(width: f32, height:f32, boid_count: u32,
+               physics_params: PhysicsParameters) -> Self {
+
+        let (dim_x, dim_y) = grid_size(width, height, boid_count);
         let grid_capacity = dim_x * dim_y;
 
         // TODO: Use sentinal values so boid count can be exactly as requested
@@ -81,7 +86,7 @@ impl FlockingSystem {
             positions: vec![Position::new(0., 0.); boid_count],
             velocities: vec![Velocity::new(0., 0.); boid_count],
             forces: vec![Force::new(0., 0.); boid_count],
-            params: FlockingSystemParameters::default(),
+            params: physics_params,
             mouse_position: Position::new(0., 0.),
             rng: rand::thread_rng(),
         }
@@ -361,7 +366,7 @@ impl FlockingSystem {
     }
 }
 
-fn calculate_grid_size(width: f32, height: f32, desired_count: u32) -> (usize, usize) {
+fn grid_size(width: f32, height: f32, desired_count: u32) -> (usize, usize) {
     let aspect_ratio = height / width;
     let mut dim_x: u32 = 0;
     let mut dim_y: u32 = 0;
