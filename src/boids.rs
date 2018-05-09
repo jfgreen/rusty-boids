@@ -99,7 +99,6 @@ pub enum WindowSize {
     Dimensions((u32, u32)),
 }
 
-//TODO: Slim down the size of this func
 pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
     let window = build_window(&events_loop, &config.window_size)?;
@@ -141,7 +140,6 @@ fn handle_key(simulation: &mut FlockingSystem, key: VirtualKeyCode) {
     }
 }
 
-//TODO: Maybe rethink this... we will just end up re-implementing window event...
 enum ControlEvent {
     Stop,
     Key(VirtualKeyCode),
@@ -209,7 +207,6 @@ fn build_window(events_loop: &EventsLoop, window_size: &WindowSize)
     )?)
 }
 
-// TODO: This could be a glx helper
 fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
     unsafe { window.make_current()?; }
     gl::load_with(|symbol| {
