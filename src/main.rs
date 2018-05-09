@@ -29,7 +29,7 @@ fn main() {
         err.exit()
     });
 
-    run_simulation(&config).unwrap_or_else(|err| {
+    run_simulation(config).unwrap_or_else(|err| {
         println!("{}", "Failure running simulation");
         err.exit()
     });

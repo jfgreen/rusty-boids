@@ -82,6 +82,7 @@ pub struct SimulationConfig {
     pub boid_count: u32,
     pub window_size: WindowSize,
     pub debug: bool,
+    pub physics_params: PhysicsParameters,
 }
 
 impl Default for SimulationConfig {
@@ -90,6 +91,7 @@ impl Default for SimulationConfig {
             boid_count: 1000,
             window_size: WindowSize::Dimensions((800, 800)),
             debug: false,
+            physics_params: PhysicsParameters::default(),
         }
     }
 }
@@ -99,14 +101,14 @@ pub enum WindowSize {
     Dimensions((u32, u32)),
 }
 
-pub fn run_simulation(config: &SimulationConfig) -> Result<(), SimulatorError> {
+pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
     let window = build_window(&events_loop, &config.window_size)?;
     gl_init(&window)?;
     if config.debug { print_debug_info(&window); }
     let (width, height) = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(width, height, config.boid_count,
-                                             PhysicsParameters::default());
+                                             config.physics_params);
     simulation.randomise();
     let renderer = Renderer::new(width, height);
     renderer.init_pipeline();
