@@ -12,12 +12,39 @@ type Force = Vector2<f32>;
 const TWO_PI: f32 = 2. * PI;
 const SHELL_GAPS: [usize; 9] = [1750, 701, 301, 132, 57, 23, 10, 4, 1];
 
-pub struct FlockingSystemConfig {
-    boid_count: u32,
-    physics_params: PhysicsParameters,
+pub struct FlockingConfig {
+    pub max_speed: f32,
+    pub max_force: f32,
+    pub mouse_weight: f32,
+    pub sep_weight: f32,
+    pub ali_weight: f32,
+    pub coh_weight: f32,
+    pub sep_radius: f32,
+    pub ali_radius: f32,
+    pub coh_radius: f32,
 }
 
-pub struct PhysicsParameters {
+impl Default for FlockingConfig {
+    fn default() -> Self {
+        FlockingConfig {
+            max_speed: 2.5,
+            max_force: 0.4,
+            mouse_weight: 600.,
+            sep_radius: 6.,
+            ali_radius: 11.5,
+            coh_radius: 11.5,
+            sep_weight: 1.5,
+            ali_weight: 1.0,
+            coh_weight: 1.0,
+            //max_force: 0.2,
+            //coh_radius: 40.,
+            //sep_radius: 20,
+            //ali_radius: 40.,
+        }
+    }
+}
+
+struct FlockingConstants {
     max_speed: f32,
     max_force: f32,
     mouse_weight: f32,
@@ -29,25 +56,22 @@ pub struct PhysicsParameters {
     coh_weight: f32,
 }
 
-impl Default for PhysicsParameters {
-    fn default() -> Self {
-        PhysicsParameters {
-            max_speed: 2.5,
-            max_force: 0.4,
-            //max_force: 0.2,
-            mouse_weight: 600.,
-            sep_radius_2: 6_f32.powi(2),
-            //sep_radius_2: 20_f32.powi(2),
-            ali_radius_2: 11.5_f32.powi(2),
-            //ali_radius_2: 40_f32.powi(2),
-            coh_radius_2: 11.5_f32.powi(2),
-            //coh_radius_2: 40_f32.powi(2),
-            sep_weight: 1.5,
-            ali_weight: 1.0,
-            coh_weight: 1.0,
+impl FlockingConstants {
+    fn from_config(conf: FlockingConfig) -> Self {
+        FlockingConstants {
+            max_speed: conf.max_speed,
+            max_force: conf.max_force,
+            mouse_weight: conf.mouse_weight,
+            sep_radius_2: conf.sep_radius.powi(2),
+            ali_radius_2: conf.ali_radius.powi(2),
+            coh_radius_2: conf.coh_radius.powi(2),
+            sep_weight: conf.sep_weight,
+            ali_weight: conf.ali_weight,
+            coh_weight: conf.coh_weight,
         }
     }
 }
+
 
 pub struct FlockingSystem {
     width: f32,
@@ -59,7 +83,7 @@ pub struct FlockingSystem {
     positions: Vec<Position>,
     velocities: Vec<Velocity>,
     forces: Vec<Force>,
-    params: PhysicsParameters,
+    params: FlockingConstants,
     mouse_position: Position,
     rng: ThreadRng,
 }
@@ -67,7 +91,7 @@ pub struct FlockingSystem {
 impl FlockingSystem {
 
     pub fn new(width: f32, height:f32, boid_count: u32,
-               physics_params: PhysicsParameters) -> Self {
+               conf: FlockingConfig) -> Self {
 
         let (dim_x, dim_y) = grid_size(width, height, boid_count);
         let grid_capacity = dim_x * dim_y;
@@ -86,7 +110,7 @@ impl FlockingSystem {
             positions: vec![Position::new(0., 0.); boid_count],
             velocities: vec![Velocity::new(0., 0.); boid_count],
             forces: vec![Force::new(0., 0.); boid_count],
-            params: physics_params,
+            params: FlockingConstants::from_config(conf),
             mouse_position: Position::new(0., 0.),
             rng: rand::thread_rng(),
         }

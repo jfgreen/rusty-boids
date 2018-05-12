@@ -23,12 +23,11 @@ pub fn build_config() -> Result<SimulationConfig, ConfigError> {
     let cli_args = parse_cli_args()?;
 
     if let Some(path) = cli_args.value_of(CONFIG_ARG) {
-        builder.apply(UserConfig::from_toml_file(path)?);
+        builder.apply(UserSimulationConfig::from_toml_file(path)?);
     }
-    builder.apply(UserConfig::from_cli_args(&cli_args)?);
+    builder.apply(UserSimulationConfig::from_cli_args(&cli_args)?);
 
     Ok(builder.build())
-
 }
 
 struct ConfigBuilder {
@@ -41,12 +40,23 @@ impl ConfigBuilder {
         ConfigBuilder{ config: SimulationConfig::default() }
     }
 
-    fn apply(&mut self, uc: UserConfig) {
+    fn apply(&mut self, uc: UserSimulationConfig) {
         let c = &mut self.config;
         merge(&mut c.boid_count,  uc.boid_count);
         merge(&mut c.debug,       uc.debug);
-        merge(&mut c.window_size, uc.window_size());
-
+        merge(&mut c.window_size, window_size(uc.window));
+        if let Some(uc_flock) = uc.flocking {
+            let c_flock = &mut c.flock_conf;
+            merge(&mut c_flock.max_speed,    uc_flock.max_speed);
+            merge(&mut c_flock.max_force,    uc_flock.max_force);
+            merge(&mut c_flock.mouse_weight, uc_flock.mouse_weight);
+            merge(&mut c_flock.sep_weight,   uc_flock.sep_weight);
+            merge(&mut c_flock.ali_weight,   uc_flock.ali_weight);
+            merge(&mut c_flock.coh_weight,   uc_flock.coh_weight);
+            merge(&mut c_flock.sep_radius,   uc_flock.sep_radius);
+            merge(&mut c_flock.ali_radius,   uc_flock.ali_radius);
+            merge(&mut c_flock.coh_radius,   uc_flock.coh_radius);
+        }
     }
 
     fn build(self) -> SimulationConfig {
@@ -59,6 +69,14 @@ impl ConfigBuilder {
 fn merge<T>(existing: &mut T, candidate: Option<T>)  {
     if let Some(v) = candidate {
         *existing = v;
+    }
+}
+
+fn window_size(window_conf: Option<UserWindowConfig>) -> Option<WindowSize> {
+    match window_conf {
+       Some(UserWindowConfig{ fullscreen:Some(true), ..}) => Some(WindowSize::Fullscreen),
+       Some(UserWindowConfig{ size:Some(dims), ..}) => Some(WindowSize::Dimensions(dims)),
+       _ => None,
     }
 }
 
@@ -151,22 +169,35 @@ impl ConfigError {
 }
 
 
-
 #[derive(Deserialize, Default)]
-struct UserConfig {
+struct UserSimulationConfig {
     boid_count: Option<u32>,
     debug: Option<bool>,
-    window: Option<WindowConfig>,
+    window: Option<UserWindowConfig>,
+    flocking: Option<UserFlockingConfig>,
 }
 
 #[derive(Copy, Clone, Deserialize, Default)]
-struct WindowConfig {
+struct UserWindowConfig {
     size: Option<(u32, u32)>,
     fullscreen: Option<bool>,
 }
 
+//TODO: Use rename annoations to make these nicer for the user
+#[derive(Copy, Clone, Deserialize, Default)]
+struct UserFlockingConfig {
+    max_speed: Option<f32>,
+    max_force: Option<f32>,
+    mouse_weight: Option<f32>,
+    sep_weight: Option<f32>,
+    ali_weight: Option<f32>,
+    coh_weight: Option<f32>,
+    sep_radius: Option<f32>,
+    ali_radius: Option<f32>,
+    coh_radius: Option<f32>,
+}
 
-impl UserConfig {
+impl UserSimulationConfig {
 
     fn from_toml_file(path: &str) -> Result<Self, ConfigError> {
         let mut file = File::open(path)?;
@@ -177,8 +208,8 @@ impl UserConfig {
 
     fn from_cli_args(args: &ArgMatches<'static>) -> Result<Self, ConfigError> {
 
-        let mut user_conf = UserConfig::default();
-        let mut window_conf = WindowConfig::default();
+        let mut user_conf = UserSimulationConfig::default();
+        let mut window_conf = UserWindowConfig::default();
 
         if args.is_present(BOID_COUNT_ARG) {
             user_conf.boid_count = Some(value_t!(args, BOID_COUNT_ARG, u32)?);
@@ -201,11 +232,4 @@ impl UserConfig {
         Ok(user_conf)
     }
 
-    fn window_size(&self) -> Option<WindowSize> {
-        match self.window {
-           Some(WindowConfig{ fullscreen:Some(true), ..}) => Some(WindowSize::Fullscreen),
-           Some(WindowConfig{ size:Some(dims), ..}) => Some(WindowSize::Dimensions(dims)),
-           _ => None,
-        }
-    }
 }

@@ -15,7 +15,7 @@ use glutin::{
 use glx;
 use render::Renderer;
 use fps::{FpsCounter, FpsCache};
-use system::{FlockingSystem, PhysicsParameters};
+use system::{FlockingSystem, FlockingConfig};
 
 const TITLE: &'static str = "rusty-boids";
 const CACHE_FPS_MS: u64 = 500;
@@ -82,7 +82,7 @@ pub struct SimulationConfig {
     pub boid_count: u32,
     pub window_size: WindowSize,
     pub debug: bool,
-    pub physics_params: PhysicsParameters,
+    pub flock_conf: FlockingConfig,
 }
 
 impl Default for SimulationConfig {
@@ -91,7 +91,7 @@ impl Default for SimulationConfig {
             boid_count: 1000,
             window_size: WindowSize::Dimensions((800, 800)),
             debug: false,
-            physics_params: PhysicsParameters::default(),
+            flock_conf: FlockingConfig::default(),
         }
     }
 }
@@ -108,7 +108,7 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     if config.debug { print_debug_info(&window); }
     let (width, height) = get_window_size(&window)?;
     let mut simulation = FlockingSystem::new(width, height, config.boid_count,
-                                             config.physics_params);
+                                             config.flock_conf);
     simulation.randomise();
     let renderer = Renderer::new(width, height);
     renderer.init_pipeline();
