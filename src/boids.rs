@@ -1,25 +1,18 @@
-use std::fmt;
 use std::error;
+use std::fmt;
 use std::process;
 
 use gl;
-use glutin::{
-    self,
-    GlRequest, Api, GlProfile,
-    CreationError, ContextError,
-    EventsLoop, WindowBuilder, ContextBuilder,
-    GlWindow, GlContext,
-    VirtualKeyCode,
-};
+use glutin::{self, Api, ContextBuilder, ContextError, CreationError, EventsLoop, GlContext,
+             GlProfile, GlRequest, GlWindow, VirtualKeyCode, WindowBuilder};
 
+use fps::{FpsCache, FpsCounter};
 use glx;
 use render::Renderer;
-use fps::{FpsCounter, FpsCache};
-use system::{FlockingSystem, FlockingConfig};
+use system::{FlockingConfig, FlockingSystem};
 
 const TITLE: &'static str = "rusty-boids";
 const CACHE_FPS_MS: u64 = 500;
-
 
 #[derive(Debug)]
 pub enum SimulatorError {
@@ -31,12 +24,9 @@ pub enum SimulatorError {
 impl fmt::Display for SimulatorError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SimulatorError::GlCreation(ref err) =>
-                write!(f, "GL creation error, {}", err),
-            SimulatorError::GlContext(ref err) =>
-                write!(f, "GL context error, {}", err),
-            SimulatorError::Window(ref err) =>
-                write!(f, "Window error, {}", err),
+            SimulatorError::GlCreation(ref err) => write!(f, "GL creation error, {}", err),
+            SimulatorError::GlContext(ref err) => write!(f, "GL context error, {}", err),
+            SimulatorError::Window(ref err) => write!(f, "Window error, {}", err),
         }
     }
 }
@@ -105,10 +95,11 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
     let window = build_window(&events_loop, &config.window_size)?;
     gl_init(&window)?;
-    if config.debug { print_debug_info(&window); }
+    if config.debug {
+        print_debug_info(&window);
+    }
     let (width, height) = get_window_size(&window)?;
-    let mut simulation = FlockingSystem::new(width, height, config.boid_count,
-                                             config.flock_conf);
+    let mut simulation = FlockingSystem::new(width, height, config.boid_count, config.flock_conf);
     simulation.randomise();
     let renderer = Renderer::new(width, height);
     renderer.init_pipeline();
@@ -118,10 +109,10 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     while running {
         simulation.update();
         events_loop.poll_events(|e| match process_event(e) {
-            Some(ControlEvent::Stop)   => running = false,
+            Some(ControlEvent::Stop) => running = false,
             Some(ControlEvent::Key(k)) => handle_key(&mut simulation, k),
             Some(ControlEvent::MouseMove(x, y)) => simulation.set_mouse(x, y),
-            _ => ()
+            _ => (),
         });
         renderer.render(&simulation.positions());
         window.swap_buffers()?;
@@ -139,7 +130,7 @@ fn handle_key(simulation: &mut FlockingSystem, key: VirtualKeyCode) {
         VirtualKeyCode::R => simulation.randomise(),
         VirtualKeyCode::F => simulation.zeroise(),
         VirtualKeyCode::C => simulation.centralise(),
-        _ => ()
+        _ => (),
     }
 }
 
@@ -151,21 +142,22 @@ enum ControlEvent {
 
 fn process_event(event: glutin::Event) -> Option<ControlEvent> {
     match event {
-        glutin::Event::WindowEvent {
-            event: e, ..
-        } => process_window_event(e),
-        _ => None
+        glutin::Event::WindowEvent { event: e, .. } => process_window_event(e),
+        _ => None,
     }
 }
 
 fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
-    use glutin::{WindowEvent, KeyboardInput, ElementState};
+    use glutin::{ElementState, KeyboardInput, WindowEvent};
     match event {
         WindowEvent::KeyboardInput {
-            input: KeyboardInput {
-                state: ElementState::Pressed,
-                virtual_keycode: Some(k), ..
-            }, ..
+            input:
+                KeyboardInput {
+                    state: ElementState::Pressed,
+                    virtual_keycode: Some(k),
+                    ..
+                },
+            ..
         } => process_keypress(k),
 
         WindowEvent::CursorMoved {
@@ -173,7 +165,7 @@ fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
         } => Some(ControlEvent::MouseMove(x as f32, y as f32)),
 
         WindowEvent::Closed => Some(ControlEvent::Stop),
-        _ => None
+        _ => None,
     }
 }
 
@@ -184,18 +176,17 @@ fn process_keypress(key: VirtualKeyCode) -> Option<ControlEvent> {
     }
 }
 
-fn build_window(events_loop: &EventsLoop, window_size: &WindowSize)
-    -> Result<GlWindow, SimulatorError> {
-
+fn build_window(
+    events_loop: &EventsLoop,
+    window_size: &WindowSize,
+) -> Result<GlWindow, SimulatorError> {
     let window_builder = WindowBuilder::new().with_title(TITLE);
     let window_builder = match window_size {
         &WindowSize::Fullscreen => {
             let screen = Some(events_loop.get_primary_monitor());
             window_builder.with_fullscreen(screen)
-        },
-        &WindowSize::Dimensions((width, height)) => {
-            window_builder.with_dimensions(width, height)
         }
+        &WindowSize::Dimensions((width, height)) => window_builder.with_dimensions(width, height),
     };
 
     let context_builder = ContextBuilder::new()
@@ -203,35 +194,35 @@ fn build_window(events_loop: &EventsLoop, window_size: &WindowSize)
         .with_gl_profile(GlProfile::Core)
         .with_vsync(true);
 
-    Ok(GlWindow::new(
-        window_builder,
-        context_builder,
-        events_loop
-    )?)
+    Ok(GlWindow::new(window_builder, context_builder, events_loop)?)
 }
 
 fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
-    unsafe { window.make_current()?; }
-    gl::load_with(|symbol| {
-        window.get_proc_address(symbol) as *const _
-    });
+    unsafe {
+        window.make_current()?;
+    }
+    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
     Ok(())
 }
 
 fn get_window_size(window: &GlWindow) -> Result<(f32, f32), SimulatorError> {
     let hidpi = window.hidpi_factor();
-    window.get_inner_size()
+    window
+        .get_inner_size()
         .map(|(w, h)| (hidpi * w as f32, hidpi * h as f32))
         .ok_or(SimulatorError::Window(
-                "Tried to get size of closed window".to_string()))
+            "Tried to get size of closed window".to_string(),
+        ))
 }
 
 fn print_debug_info(window: &GlWindow) {
     println!("Vendor: {}", glx::get_gl_str(gl::VENDOR));
     println!("Renderer: {}", glx::get_gl_str(gl::RENDERER));
     println!("Version: {}", glx::get_gl_str(gl::VERSION));
-    println!("GLSL version: {}", glx::get_gl_str(gl::SHADING_LANGUAGE_VERSION));
+    println!(
+        "GLSL version: {}",
+        glx::get_gl_str(gl::SHADING_LANGUAGE_VERSION)
+    );
     println!("Extensions: {}", glx::get_gl_extensions().join(","));
     println!("Hidpi factor: {}", window.hidpi_factor());
 }
-

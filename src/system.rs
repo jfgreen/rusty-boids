@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
-use cgmath::{Point2, Vector2, InnerSpace};
 use cgmath::{Basis2, Rad, Rotation, Rotation2};
+use cgmath::{InnerSpace, Point2, Vector2};
 use rand::distributions::{IndependentSample, Range};
 use rand::{self, ThreadRng};
 
@@ -72,7 +72,6 @@ impl FlockingConstants {
     }
 }
 
-
 pub struct FlockingSystem {
     width: f32,
     height: f32,
@@ -89,10 +88,7 @@ pub struct FlockingSystem {
 }
 
 impl FlockingSystem {
-
-    pub fn new(width: f32, height:f32, boid_count: u32,
-               conf: FlockingConfig) -> Self {
-
+    pub fn new(width: f32, height: f32, boid_count: u32, conf: FlockingConfig) -> Self {
         let (dim_x, dim_y) = grid_size(width, height, boid_count);
         let grid_capacity = dim_x * dim_y;
 
@@ -116,14 +112,13 @@ impl FlockingSystem {
         }
     }
 
-
     pub fn randomise(&mut self) {
         self.randomise_positions();
         self.randomise_velocities();
     }
 
     pub fn centralise(&mut self) {
-        let center = Position::new(self.width/2., self.height/2.);
+        let center = Position::new(self.width / 2., self.height / 2.);
         for i in 0..self.boid_count {
             self.positions[i] = center;
         }
@@ -161,7 +156,6 @@ impl FlockingSystem {
             let y = sim_space_y.ind_sample(&mut self.rng);
             self.positions[i] = Point2::new(x, y);
         }
-
     }
 
     fn randomise_velocities(&mut self) {
@@ -178,10 +172,10 @@ impl FlockingSystem {
         //TODO: Could we pick the right starting gap such that we dont need these checks?
         for &gap in SHELL_GAPS.iter() {
             if gap < self.dim_x {
-               self.spatial_shell_pass_rows(gap);
+                self.spatial_shell_pass_rows(gap);
             }
             if gap < self.dim_y {
-               self.spatial_shell_pass_columns(gap);
+                self.spatial_shell_pass_columns(gap);
             }
         }
     }
@@ -193,17 +187,17 @@ impl FlockingSystem {
                 let temp_pos = self.positions[temp_boid];
                 let mut j = col;
                 while j >= gap {
-                    let curr_boid = self.query_boid_index(j-gap, row);
+                    let curr_boid = self.query_boid_index(j - gap, row);
                     let curr_pos = self.positions[curr_boid];
                     if curr_pos.x < temp_pos.x {
-                       self.update_boid_index(j, row, curr_boid);
+                        self.update_boid_index(j, row, curr_boid);
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != col {
-                   self.update_boid_index(j, row, temp_boid);
+                    self.update_boid_index(j, row, temp_boid);
                 }
             }
         }
@@ -216,17 +210,17 @@ impl FlockingSystem {
                 let temp_pos = self.positions[temp_boid];
                 let mut j = row;
                 while j >= gap {
-                    let curr_boid = self.query_boid_index(col, j-gap);
+                    let curr_boid = self.query_boid_index(col, j - gap);
                     let curr_pos = self.positions[curr_boid];
                     if curr_pos.y < temp_pos.y {
-                       self.update_boid_index(col, j, curr_boid);
+                        self.update_boid_index(col, j, curr_boid);
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != row {
-                   self.update_boid_index(col, j, temp_boid);
+                    self.update_boid_index(col, j, temp_boid);
                 }
             }
         }
@@ -236,7 +230,7 @@ impl FlockingSystem {
         self.grid[column + (row * self.dim_x)]
     }
 
-    fn update_boid_index(&mut self, column:usize, row:usize, boid: usize) {
+    fn update_boid_index(&mut self, column: usize, row: usize, boid: usize) {
         self.grid[column + (row * self.dim_x)] = boid;
     }
 
@@ -277,30 +271,110 @@ impl FlockingSystem {
         //TODO: Could try other "kernals"
 
         //TODO Remove use of i32, use usize instead
-        let neighbours: &[(i32, i32)] = match (vel.x > 0., vel.y > 0., vel.x.abs() > vel.y.abs() ) {
-            (true, true, true) =>
-                &[(1, -1), (1, 0), (1, 1), (2, 0), (2, 1), (0, 1), (2, 2), (0, -1), (2, -1), (1, 2)],
+        let neighbours: &[(i32, i32)] = match (vel.x > 0., vel.y > 0., vel.x.abs() > vel.y.abs()) {
+            (true, true, true) => &[
+                (1, -1),
+                (1, 0),
+                (1, 1),
+                (2, 0),
+                (2, 1),
+                (0, 1),
+                (2, 2),
+                (0, -1),
+                (2, -1),
+                (1, 2),
+            ],
 
-            (true, true, false) =>
-                &[(1, 1), (0, 1), (-1, 1), (0, 2), (1, 2), (1, 0), (2, 2), (-1, 0), (2, 1), (-1, 2)],
+            (true, true, false) => &[
+                (1, 1),
+                (0, 1),
+                (-1, 1),
+                (0, 2),
+                (1, 2),
+                (1, 0),
+                (2, 2),
+                (-1, 0),
+                (2, 1),
+                (-1, 2),
+            ],
 
-            (false, true, false) =>
-                &[(1, 1), (0, 1), (-1, 1), (0, 2), (-1, 2), (-1, 0), (-2, 2), (1, 0), (1, 2), (-2, 1)],
+            (false, true, false) => &[
+                (1, 1),
+                (0, 1),
+                (-1, 1),
+                (0, 2),
+                (-1, 2),
+                (-1, 0),
+                (-2, 2),
+                (1, 0),
+                (1, 2),
+                (-2, 1),
+            ],
 
-            (false, true, true) =>
-                &[(-1, 1), (-1, 0), (-1, -1), (-2, 0), (-2, 1), (0, 1), (-2, 2), (0, -1), (-1, 2), (-2, -1)],
+            (false, true, true) => &[
+                (-1, 1),
+                (-1, 0),
+                (-1, -1),
+                (-2, 0),
+                (-2, 1),
+                (0, 1),
+                (-2, 2),
+                (0, -1),
+                (-1, 2),
+                (-2, -1),
+            ],
 
-            (false, false, true) =>
-                &[(-1, 1), (-1, 0), (-1, -1), (-2, 0), (-2, -1), (0, -1), (-2, -2), (0, 1), (-2, 1), (-1, -2)],
+            (false, false, true) => &[
+                (-1, 1),
+                (-1, 0),
+                (-1, -1),
+                (-2, 0),
+                (-2, -1),
+                (0, -1),
+                (-2, -2),
+                (0, 1),
+                (-2, 1),
+                (-1, -2),
+            ],
 
-            (false, false, false) =>
-                &[(-1, -1), (0, -1), (1, -1), (0, -2), (-1, -2), (-1, 0), (-2, -2), (1, 0), (-2, -1), (1, -2)],
+            (false, false, false) => &[
+                (-1, -1),
+                (0, -1),
+                (1, -1),
+                (0, -2),
+                (-1, -2),
+                (-1, 0),
+                (-2, -2),
+                (1, 0),
+                (-2, -1),
+                (1, -2),
+            ],
 
-            (true, false, false) =>
-                &[(-1, -1), (0, -1), (1, -1),  (0, -2), (1, -2), (1, 0), (2, -2), (-1, 0), (-1, -2), (2, -1)],
+            (true, false, false) => &[
+                (-1, -1),
+                (0, -1),
+                (1, -1),
+                (0, -2),
+                (1, -2),
+                (1, 0),
+                (2, -2),
+                (-1, 0),
+                (-1, -2),
+                (2, -1),
+            ],
 
-            (true, false, true) =>
-                &[(1, -1), (1, 0), (1, 1), (2, 0), (2, -1), (0, -1), (2, -2), (0, 1), (1, -2), (2, 1)],
+            (true, false, true) => &[
+                (1, -1),
+                (1, 0),
+                (1, 1),
+                (2, 0),
+                (2, -1),
+                (0, -1),
+                (2, -2),
+                (0, 1),
+                (1, -2),
+                (2, 1),
+            ],
         };
 
         //TODO: Try and remove extra references and casting
@@ -330,7 +404,7 @@ impl FlockingSystem {
             let dist_squared = from_neighbour.magnitude2();
             if dist_squared > 0. {
                 if dist_squared < self.params.sep_radius_2 {
-                    let repulse = 1./dist_squared.sqrt();
+                    let repulse = 1. / dist_squared.sqrt();
                     dodge += from_neighbour.normalize_to(repulse);
                 }
                 if dist_squared < self.params.ali_radius_2 {
@@ -368,7 +442,6 @@ impl FlockingSystem {
         force
     }
 
-
     fn update_velocities(&mut self) {
         for i in 0..self.boid_count {
             let vel = self.velocities[i] + self.forces[i];
@@ -381,10 +454,18 @@ impl FlockingSystem {
         for i in 0..self.boid_count {
             let mut new_pos = self.positions[i] + self.velocities[i];
             //FIXME: horrible hack, find a better way
-            if new_pos.x <= 0. { new_pos.x = self.width - 0.1 };
-            if new_pos.y <= 0. { new_pos.y = self.height - 0.1 };
-            if new_pos.x >= self.width { new_pos.x = 0.1 };
-            if new_pos.y >= self.height { new_pos.y = 0.1 };
+            if new_pos.x <= 0. {
+                new_pos.x = self.width - 0.1
+            };
+            if new_pos.y <= 0. {
+                new_pos.y = self.height - 0.1
+            };
+            if new_pos.x >= self.width {
+                new_pos.x = 0.1
+            };
+            if new_pos.y >= self.height {
+                new_pos.y = 0.1
+            };
             self.positions[i] = new_pos
         }
     }
@@ -395,7 +476,7 @@ fn grid_size(width: f32, height: f32, desired_count: u32) -> (usize, usize) {
     let mut dim_x: u32 = 0;
     let mut dim_y: u32 = 0;
     while dim_x * dim_y < desired_count {
-        dim_x +=1;
+        dim_x += 1;
         dim_y = (dim_x as f32 * aspect_ratio) as u32;
     }
     (dim_x as usize, dim_y as usize)
@@ -406,7 +487,7 @@ fn velocity_from_polar(a: f32, m: f32) -> Velocity {
 }
 
 fn limit(force: Force, max: f32) -> Force {
-    if force.magnitude2() > max*max {
+    if force.magnitude2() > max * max {
         force.normalize_to(max)
     } else {
         force

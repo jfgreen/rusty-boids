@@ -1,11 +1,11 @@
-use std::ptr;
 use std::mem;
+use std::ptr;
 
+use cgmath::{Matrix, Matrix3, Point2};
 use gl;
 use gl::types::*;
-use cgmath::{Matrix, Matrix3, Point2};
 
-use glx::{self, ShaderProgram, VertexArray, Buffer};
+use glx::{self, Buffer, ShaderProgram, VertexArray};
 
 // Shader sources
 static VS_SRC: &'static str = "
@@ -41,8 +41,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(width: f32, height: f32) -> Renderer {
-        let program = ShaderProgram::new(VS_SRC, FS_SRC)
-            .expect("Problem creating shader program");
+        let program = ShaderProgram::new(VS_SRC, FS_SRC).expect("Problem creating shader program");
 
         Renderer {
             transform: glx::vtx_transform_2d(width, height),
@@ -53,32 +52,27 @@ impl Renderer {
     }
 
     pub fn init_pipeline(&self) {
-
         unsafe {
             self.vao.bind();
             self.vbo.bind(gl::ARRAY_BUFFER);
             self.program.activate();
 
             // Set the tranform uniform
-            let trans_loc = self.program.get_uniform_location("transform")
+            let trans_loc = self.program
+                .get_uniform_location("transform")
                 .expect("Could not find uniform");
             gl::UniformMatrix3fv(trans_loc, 1, gl::FALSE, self.transform.as_ptr());
 
             // Specify the layout of the vertex data
-            let pos_loc = self.program.get_atrib_location("position")
+            let pos_loc = self.program
+                .get_atrib_location("position")
                 .expect("could not find position");
             gl::EnableVertexAttribArray(pos_loc);
-            gl::VertexAttribPointer(pos_loc,
-                                    2,
-                                    gl::FLOAT,
-                                    gl::FALSE,
-                                    0,
-                                    ptr::null());
+            gl::VertexAttribPointer(pos_loc, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
 
             // Allow shader to specify point size
             gl::Enable(gl::PROGRAM_POINT_SIZE);
         }
-
     }
 
     pub fn render(&self, points: &[Point2<f32>]) {
@@ -87,14 +81,14 @@ impl Renderer {
             // This _should_ implement buffer orphaning
             gl::BufferData(gl::ARRAY_BUFFER, 0, ptr::null(), gl::STREAM_DRAW);
 
-            gl::BufferData(gl::ARRAY_BUFFER,
-                           (points.len() * mem::size_of::<Point2<f32>>()) as GLsizeiptr,
-                           points.as_ptr() as *const _,
-                           gl::STREAM_DRAW);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (points.len() * mem::size_of::<Point2<f32>>()) as GLsizeiptr,
+                points.as_ptr() as *const _,
+                gl::STREAM_DRAW,
+            );
 
             gl::DrawArrays(gl::POINTS, 0, points.len() as i32);
         }
     }
-
 }
-

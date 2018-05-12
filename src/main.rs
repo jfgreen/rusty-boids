@@ -1,6 +1,6 @@
-extern crate glutin;
-extern crate gl;
 extern crate cgmath;
+extern crate gl;
+extern crate glutin;
 extern crate rand;
 extern crate toml;
 
@@ -11,17 +11,15 @@ extern crate clap;
 extern crate serde_derive;
 extern crate serde;
 
-
 mod boids;
+mod config;
+mod fps;
 mod glx;
 mod render;
-mod fps;
 mod system;
-mod config;
 
-use config::build_config;
 use boids::run_simulation;
-
+use config::build_config;
 
 fn main() {
     let config = build_config().unwrap_or_else(|err| {
@@ -34,5 +32,3 @@ fn main() {
         err.exit()
     });
 }
-
-

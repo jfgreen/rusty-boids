@@ -1,13 +1,13 @@
 // Glx = Open GL extras (aka helper functions)
 
-use std::ffi::{CStr, CString};
-use std::ptr;
-use std::fmt;
 use std::error;
+use std::ffi::{CStr, CString};
+use std::fmt;
+use std::ptr;
 
+use cgmath::Matrix3;
 use gl;
 use gl::types::*;
-use cgmath::Matrix3;
 
 pub fn get_gl_extensions() -> Vec<String> {
     let mut results = vec![];
@@ -19,7 +19,9 @@ pub fn get_gl_extensions() -> Vec<String> {
 
 pub fn get_gl_int(name: GLenum) -> i32 {
     let mut i = 0;
-    unsafe { gl::GetIntegerv(name, &mut i); }
+    unsafe {
+        gl::GetIntegerv(name, &mut i);
+    }
     i
 }
 
@@ -33,16 +35,13 @@ pub fn get_gl_stri(name: GLenum, i: GLuint) -> String {
 
 unsafe fn read_gl_str(ptr: *const u8) -> String {
     CStr::from_ptr(ptr as *const _)
-        .to_str().expect("OpenGL returned invalid utf8")
+        .to_str()
+        .expect("OpenGL returned invalid utf8")
         .to_owned()
 }
 
-pub fn vtx_transform_2d(width: f32, height:f32) -> Matrix3<f32> {
-    Matrix3::new(
-        2./width, 0., 0.,
-        0., -2./height, 0.,
-        -1., 1., 1.
-    )
+pub fn vtx_transform_2d(width: f32, height: f32) -> Matrix3<f32> {
+    Matrix3::new(2. / width, 0., 0., 0., -2. / height, 0., -1., 1., 1.)
 }
 
 pub fn clear_screen(r: GLfloat, g: GLfloat, b: GLfloat) {
@@ -62,12 +61,9 @@ pub enum ShaderError {
 impl fmt::Display for ShaderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ShaderError::Compilation(ref err) =>
-                write!(f, "Shader compilation error, {}", err),
-            ShaderError::Linking(ref err) =>
-                write!(f, "Shader linking error, {}", err),
-            ShaderError::Lookup(ref err) =>
-                write!(f, "Shader lookup error, {}", err),
+            ShaderError::Compilation(ref err) => write!(f, "Shader compilation error, {}", err),
+            ShaderError::Linking(ref err) => write!(f, "Shader linking error, {}", err),
+            ShaderError::Lookup(ref err) => write!(f, "Shader lookup error, {}", err),
         }
     }
 }
@@ -88,27 +84,30 @@ impl error::Error for ShaderError {
 
 pub struct VertexArray {
     vertex_array_id: GLuint,
-
 }
 
 impl VertexArray {
     pub fn new() -> VertexArray {
         let mut vertex_array_id = 0;
-        unsafe{ gl::GenVertexArrays(1, &mut vertex_array_id);}
+        unsafe {
+            gl::GenVertexArrays(1, &mut vertex_array_id);
+        }
         VertexArray { vertex_array_id }
     }
 
     pub fn bind(&self) {
-        unsafe{ gl::BindVertexArray(self.vertex_array_id);}
+        unsafe {
+            gl::BindVertexArray(self.vertex_array_id);
+        }
     }
 }
 
 impl Drop for VertexArray {
-
     fn drop(&mut self) {
-        unsafe{ gl::DeleteVertexArrays(1, &self.vertex_array_id);}
+        unsafe {
+            gl::DeleteVertexArrays(1, &self.vertex_array_id);
+        }
     }
-
 }
 
 pub struct Buffer {
@@ -118,18 +117,24 @@ pub struct Buffer {
 impl Buffer {
     pub fn new() -> Buffer {
         let mut buffer_id = 0;
-        unsafe{ gl::GenBuffers(1, &mut buffer_id); }
-        Buffer{ buffer_id }
+        unsafe {
+            gl::GenBuffers(1, &mut buffer_id);
+        }
+        Buffer { buffer_id }
     }
 
     pub fn bind(&self, target: GLenum) {
-        unsafe{ gl::BindBuffer(target, self.buffer_id); }
+        unsafe {
+            gl::BindBuffer(target, self.buffer_id);
+        }
     }
 }
 
 impl Drop for Buffer {
     fn drop(&mut self) {
-        unsafe{  gl::DeleteBuffers(1, &self.buffer_id); }
+        unsafe {
+            gl::DeleteBuffers(1, &self.buffer_id);
+        }
     }
 }
 
@@ -138,7 +143,6 @@ pub struct ShaderProgram {
 }
 
 impl ShaderProgram {
-
     pub fn new(vrtx_src: &str, frag_src: &str) -> Result<ShaderProgram, ShaderError> {
         unsafe {
             let vrtx_shader = compile_shader(vrtx_src, gl::VERTEX_SHADER)?;
@@ -164,39 +168,39 @@ impl ShaderProgram {
         unsafe {
             let location = gl::GetAttribLocation(self.program_id, c_name.as_ptr());
             if location == -1 {
-                Err(ShaderError::Lookup(
-                    format!("'couldn't find attribute named '{}'", name)
-                ))
+                Err(ShaderError::Lookup(format!(
+                    "'couldn't find attribute named '{}'",
+                    name
+                )))
             } else {
                 Ok(location as GLuint)
             }
         }
     }
 
-
     pub fn get_uniform_location(&self, name: &str) -> Result<GLint, ShaderError> {
         let c_name = CString::new(name).unwrap();
         unsafe {
             let location = gl::GetUniformLocation(self.program_id, c_name.as_ptr());
             if location == -1 {
-                Err(ShaderError::Lookup(
-                    format!("'couldn't find uniform named '{}'", name)
-                ))
+                Err(ShaderError::Lookup(format!(
+                    "'couldn't find uniform named '{}'",
+                    name
+                )))
             } else {
                 Ok(location)
             }
         }
     }
-
 }
 
 impl Drop for ShaderProgram {
-
     fn drop(&mut self) {
-        unsafe { gl::DeleteShader(self.program_id); }
+        unsafe {
+            gl::DeleteShader(self.program_id);
+        }
     }
 }
-
 
 unsafe fn compile_shader(src: &str, shader_type: GLenum) -> Result<GLuint, ShaderError> {
     let shader = gl::CreateShader(shader_type);
@@ -217,10 +221,12 @@ unsafe fn compile_shader(src: &str, shader_type: GLenum) -> Result<GLuint, Shade
         let mut buf = Vec::with_capacity(len as usize);
         // subract 1 to skip the trailing null character
         buf.set_len((len as usize) - 1);
-        gl::GetShaderInfoLog(shader,
-                             len,
-                             ptr::null_mut(),
-                             buf.as_mut_ptr() as *mut GLchar);
+        gl::GetShaderInfoLog(
+            shader,
+            len,
+            ptr::null_mut(),
+            buf.as_mut_ptr() as *mut GLchar,
+        );
 
         let err_msg = String::from_utf8(buf).expect("ProgramInfoLog not valid utf8");
         Err(ShaderError::Compilation(err_msg))
@@ -249,10 +255,12 @@ unsafe fn link_program(vrtx_shader: GLuint, frag_shader: GLuint) -> Result<GLuin
         let mut buf = Vec::with_capacity(len as usize);
         // subract 1 to skip the trailing null character
         buf.set_len((len as usize) - 1);
-        gl::GetProgramInfoLog(program,
-                              len,
-                              ptr::null_mut(),
-                              buf.as_mut_ptr() as *mut GLchar);
+        gl::GetProgramInfoLog(
+            program,
+            len,
+            ptr::null_mut(),
+            buf.as_mut_ptr() as *mut GLchar,
+        );
 
         let err_msg = String::from_utf8(buf).expect("ProgramInfoLog not valid utf8");
         Err(ShaderError::Linking(err_msg))
