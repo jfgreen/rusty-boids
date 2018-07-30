@@ -1,10 +1,10 @@
-use std::error;
-use std::fmt;
-use std::process;
+use std::{error, fmt, process};
 
 use gl;
-use glutin::{self, Api, ContextBuilder, ContextError, CreationError, EventsLoop, GlContext,
-             GlProfile, GlRequest, GlWindow, VirtualKeyCode, WindowBuilder};
+use glutin::{
+    self, Api, ContextBuilder, ContextError, CreationError, EventsLoop, GlContext, GlProfile,
+    GlRequest, GlWindow, VirtualKeyCode, WindowBuilder,
+};
 
 use fps::{FpsCache, FpsCounter};
 use glx;

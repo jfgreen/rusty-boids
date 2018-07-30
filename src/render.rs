@@ -1,9 +1,7 @@
-use std::mem;
-use std::ptr;
+use std::{mem, ptr};
 
 use cgmath::{Matrix, Matrix3, Point2};
-use gl;
-use gl::types::*;
+use gl::{self, types::*};
 
 use glx::{self, Buffer, ShaderProgram, VertexArray};
 

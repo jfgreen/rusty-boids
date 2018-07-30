@@ -1,9 +1,9 @@
 use std::f32::consts::PI;
 
-use cgmath::{Basis2, Rad, Rotation, Rotation2};
-use cgmath::{InnerSpace, Point2, Vector2};
-use rand::distributions::{IndependentSample, Range};
-use rand::{self, ThreadRng};
+use cgmath::{Basis2, InnerSpace, Point2, Rad, Rotation, Rotation2, Vector2};
+use rand::{
+    self, distributions::{IndependentSample, Range}, ThreadRng,
+};
 
 type Position = Point2<f32>;
 type Velocity = Vector2<f32>;

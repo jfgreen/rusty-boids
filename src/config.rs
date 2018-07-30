@@ -1,13 +1,10 @@
-use std::fmt;
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
-use std::process;
+use std::{fmt, fs::File, io, io::prelude::*, process};
 
 use boids::{SimulationConfig, WindowSize};
 
-use clap::ErrorKind::{HelpDisplayed, VersionDisplayed};
-use clap::{self, App, Arg, ArgMatches};
+use clap::{
+    self, App, Arg, ArgMatches, ErrorKind::{HelpDisplayed, VersionDisplayed},
+};
 use toml;
 
 const CONFIG_ARG: &str = "config";

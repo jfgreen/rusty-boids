@@ -1,13 +1,10 @@
 // Glx = Open GL extras (aka helper functions)
 
-use std::error;
-use std::ffi::{CStr, CString};
-use std::fmt;
-use std::ptr;
-
 use cgmath::Matrix3;
-use gl;
-use gl::types::*;
+use gl::{self, types::*};
+use std::{
+    error, ffi::{CStr, CString}, fmt, ptr,
+};
 
 pub fn get_gl_extensions() -> Vec<String> {
     let mut results = vec![];
