@@ -167,7 +167,7 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
             Some(ControlEvent::MouseMove(x, y)) => simulation.set_mouse(x, y),
             _ => (),
         });
-        renderer.render(&simulation.positions());
+        renderer.render(&simulation.boids());
         window.swap_buffers()?;
         fps_counter.tick();
         fps_cacher.poll(&fps_counter, |new_fps| {

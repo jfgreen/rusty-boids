@@ -57,6 +57,21 @@ impl FlockingConstants {
     }
 }
 
+#[repr(C)]
+pub struct Boid {
+    position: Position,
+    velocity: Velocity,
+}
+
+impl Boid {
+    fn new() -> Self {
+        Boid {
+            position: Position::new(0., 0.),
+            velocity: Velocity::new(0., 0.),
+        }
+    }
+}
+
 pub struct FlockingSystem {
     width: f32,
     height: f32,
@@ -64,8 +79,7 @@ pub struct FlockingSystem {
     dim_x: usize,
     dim_y: usize,
     grid: Vec<usize>,
-    positions: Vec<Position>,
-    velocities: Vec<Velocity>,
+    boids: Vec<Boid>,
     forces: Vec<Force>,
     params: FlockingConstants,
     mouse_position: Position,
@@ -89,8 +103,7 @@ impl FlockingSystem {
             dim_x,
             dim_y,
             grid: (0..grid_capacity).collect(),
-            positions: vec![Position::new(0., 0.); boid_count],
-            velocities: vec![Velocity::new(0., 0.); boid_count],
+            boids: (0..boid_count).map(|_| Boid::new()).collect(),
             forces: vec![Force::new(0., 0.); boid_count],
             params: FlockingConstants::from_config(conf),
             mouse_position: Position::new(0., 0.),
@@ -106,14 +119,14 @@ impl FlockingSystem {
     pub fn centralise(&mut self) {
         let center = Position::new(self.width / 2., self.height / 2.);
         for i in 0..self.boid_count {
-            self.positions[i] = center;
+            self.boids[i].position = center;
         }
         self.randomise_velocities();
     }
 
     pub fn zeroise(&mut self) {
         for i in 0..self.boid_count {
-            self.positions[i] = Position::new(0., 0.);
+            self.boids[i].position = Position::new(0., 0.);
         }
         self.randomise_velocities();
     }
@@ -122,16 +135,15 @@ impl FlockingSystem {
     pub fn update(&mut self) {
         self.refresh_index();
         self.calculate_forces();
-        self.update_velocities();
-        self.update_positions();
+        self.update_boids();
     }
 
     pub fn set_mouse(&mut self, x: f32, y: f32) {
         self.mouse_position = Position::new(x, y);
     }
 
-    pub fn positions(&self) -> &[Position] {
-        &self.positions
+    pub fn boids(&self) -> &[Boid] {
+        &self.boids
     }
 
     fn randomise_positions(&mut self) {
@@ -140,7 +152,7 @@ impl FlockingSystem {
         for i in 0..self.boid_count {
             let x = sim_space_x.ind_sample(&mut self.rng);
             let y = sim_space_y.ind_sample(&mut self.rng);
-            self.positions[i] = Point2::new(x, y);
+            self.boids[i].position = Point2::new(x, y);
         }
     }
 
@@ -150,7 +162,7 @@ impl FlockingSystem {
         for i in 0..self.boid_count {
             let a = ang_space.ind_sample(&mut self.rng);
             let m = vel_space.ind_sample(&mut self.rng);
-            self.velocities[i] = velocity_from_polar(a, m);
+            self.boids[i].velocity = velocity_from_polar(a, m);
         }
     }
 
@@ -170,11 +182,11 @@ impl FlockingSystem {
         for row in 0..self.dim_y {
             for col in gap..self.dim_x {
                 let temp_boid = self.query_boid_index(col, row);
-                let temp_pos = self.positions[temp_boid];
+                let temp_pos = self.boids[temp_boid].position;
                 let mut j = col;
                 while j >= gap {
                     let curr_boid = self.query_boid_index(j - gap, row);
-                    let curr_pos = self.positions[curr_boid];
+                    let curr_pos = self.boids[curr_boid].position;
                     if curr_pos.x < temp_pos.x {
                         self.update_boid_index(j, row, curr_boid);
                     } else {
@@ -193,11 +205,11 @@ impl FlockingSystem {
         for col in 0..self.dim_x {
             for row in gap..self.dim_y {
                 let temp_boid = self.query_boid_index(col, row);
-                let temp_pos = self.positions[temp_boid];
+                let temp_pos = self.boids[temp_boid].position;
                 let mut j = row;
                 while j >= gap {
                     let curr_boid = self.query_boid_index(col, j - gap);
-                    let curr_pos = self.positions[curr_boid];
+                    let curr_pos = self.boids[curr_boid].position;
                     if curr_pos.y < temp_pos.y {
                         self.update_boid_index(col, j, curr_boid);
                     } else {
@@ -221,25 +233,21 @@ impl FlockingSystem {
     }
 
     fn calculate_forces(&mut self) {
-        // TODO: Pull out position and velocity here and feed into react funcs?
-        // It seems that maybe array of structs might be better for this use case
-        // TODO: refactor react code to avoid redundant looking up of things
         for row in 0..self.dim_y {
             for col in 0..self.dim_x {
-                let boid = self.query_boid_index(col, row);
-                let current_vel = self.velocities[boid];
-                let current_pos = self.positions[boid];
+                let boid_index = self.query_boid_index(col, row);
                 let mut force = Vector2::new(0., 0.);
-                let neighbours = self.find_neighbours(col, row, current_vel);
-                force += self.react_to_neighbours(current_pos, current_vel, &neighbours);
-                force += self.react_to_mouse(current_pos);
-                self.forces[boid] = force;
+                let neighbours = self.find_neighbours(col, row, boid_index);
+                force += self.react_to_neighbours(boid_index, &neighbours);
+                force += self.react_to_mouse(boid_index);
+                self.forces[boid_index] = force;
             }
         }
     }
 
-    fn react_to_mouse(&mut self, position: Position) -> Force {
-        let from_mouse = position - self.mouse_position;
+    fn react_to_mouse(&mut self, boid_index: usize) -> Force {
+        let boid = &self.boids[boid_index];
+        let from_mouse = boid.position - self.mouse_position;
         let dist_sq = from_mouse.magnitude2();
         if dist_sq > 0. {
             let repulse = self.params.mouse_weight / dist_sq;
@@ -250,13 +258,15 @@ impl FlockingSystem {
     }
 
     // TODO: See if we can lose box?
-    fn find_neighbours(&self, col: usize, row: usize, vel: Velocity) -> Box<[usize]> {
+    fn find_neighbours(&self, col: usize, row: usize, boid_index: usize) -> Box<[usize]> {
+        let boid = &self.boids[boid_index];
         let mut neighbourhood = vec![];
 
         //TODO: Sort the neighbours below into memory access patter order
         //TODO: Could try other "kernals"
 
         //TODO Remove use of i32, use usize instead
+        let vel = boid.velocity;
         let neighbours: &[(i32, i32)] = match (vel.x > 0., vel.y > 0., vel.x.abs() > vel.y.abs()) {
             (true, true, true) => &[
                 (1, -1),
@@ -376,17 +386,17 @@ impl FlockingSystem {
         neighbourhood.into_boxed_slice()
     }
 
-    fn react_to_neighbours(&mut self, pos: Position, vel: Velocity, neighbours: &[usize]) -> Force {
+    fn react_to_neighbours(&mut self, boid_index: usize, neighbours: &[usize]) -> Force {
         let mut dodge = Vector2::new(0., 0.);
         let mut ali_vel_acc = Vector2::new(0., 0.);
         let mut ali_vel_count = 0;
         let mut coh_pos_acc = Vector2::new(0., 0.);
         let mut coh_pos_count = 0;
 
+        let boid = &self.boids[boid_index];
         for &other in neighbours {
-            let other_pos = self.positions[other];
-            let other_vel = self.velocities[other];
-            let from_neighbour = pos - other_pos;
+            let other = &self.boids[other];
+            let from_neighbour = boid.position - other.position;
             let dist_squared = from_neighbour.magnitude2();
             if dist_squared > 0. {
                 if dist_squared < self.params.sep_radius_2 {
@@ -394,12 +404,12 @@ impl FlockingSystem {
                     dodge += from_neighbour.normalize_to(repulse);
                 }
                 if dist_squared < self.params.ali_radius_2 {
-                    ali_vel_acc += other_vel;
+                    ali_vel_acc += other.velocity;
                     ali_vel_count += 1;
                 }
                 if dist_squared < self.params.coh_radius_2 {
-                    coh_pos_acc.x += other_pos.x;
-                    coh_pos_acc.y += other_pos.y;
+                    coh_pos_acc.x += other.position.x;
+                    coh_pos_acc.y += other.position.y;
                     coh_pos_count += 1;
                 }
             }
@@ -408,37 +418,34 @@ impl FlockingSystem {
         let mut force = Vector2::new(0., 0.);
         if dodge.magnitude2() > 0. {
             let target_d_vel = dodge.normalize_to(self.params.max_speed);
-            let d_steer = limit(target_d_vel - vel, self.params.max_force);
+            let d_steer = limit(target_d_vel - boid.velocity, self.params.max_force);
             force += self.params.sep_weight * d_steer;
         }
         if ali_vel_count > 0 {
             let align = ali_vel_acc / ali_vel_count as f32;
             let target_a_vel = align.normalize_to(self.params.max_speed);
-            let a_steer = limit(target_a_vel - vel, self.params.max_force);
+            let a_steer = limit(target_a_vel - boid.velocity, self.params.max_force);
             force += self.params.ali_weight * a_steer;
         }
         if coh_pos_count > 0 {
             let avg_pos = coh_pos_acc / coh_pos_count as f32;
-            let boid_pos = Vector2::new(pos.x, pos.y);
+            let boid_pos = Vector2::new(boid.position.x, boid.position.y);
             let cohesion = avg_pos - boid_pos;
             let target_c_vel = cohesion.normalize_to(self.params.max_speed);
-            let c_steer = limit(target_c_vel - vel, self.params.max_force);
+            let c_steer = limit(target_c_vel - boid.velocity, self.params.max_force);
             force += self.params.coh_weight * c_steer;
         }
         force
     }
 
-    fn update_velocities(&mut self) {
+    fn update_boids(&mut self) {
         for i in 0..self.boid_count {
-            let vel = self.velocities[i] + self.forces[i];
-            self.velocities[i] = limit(vel, self.params.max_speed);
-        }
-    }
+            // Update velocity
+            let vel = self.boids[i].velocity + self.forces[i];
+            self.boids[i].velocity = limit(vel, self.params.max_speed);
 
-    fn update_positions(&mut self) {
-        //TODO: Is it noticeably slower to do this in a seperate pass from vel update?
-        for i in 0..self.boid_count {
-            let mut new_pos = self.positions[i] + self.velocities[i];
+            // Update position
+            let mut new_pos = self.boids[i].position + self.boids[i].velocity;
             //FIXME: horrible hack, find a better way
             if new_pos.x <= 0. {
                 new_pos.x = self.width - 0.1
@@ -452,7 +459,7 @@ impl FlockingSystem {
             if new_pos.y >= self.height {
                 new_pos.y = 0.1
             };
-            self.positions[i] = new_pos
+            self.boids[i].position = new_pos
         }
     }
 }

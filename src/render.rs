@@ -1,7 +1,8 @@
 use std::{mem, ptr};
 
-use cgmath::{Matrix, Matrix3, Point2};
+use cgmath::{Matrix, Matrix3};
 use gl::{self, types::*};
+use system::Boid;
 
 use glx::{self, Buffer, ShaderProgram, VertexArray};
 
@@ -83,14 +84,21 @@ impl Renderer {
                 .get_atrib_location("position")
                 .expect("could not find position");
             gl::EnableVertexAttribArray(pos_loc);
-            gl::VertexAttribPointer(pos_loc, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
+            gl::VertexAttribPointer(
+                pos_loc,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                mem::size_of::<Boid>() as GLsizei,
+                ptr::null(),
+            );
 
             // Allow shader to specify point size
             gl::Enable(gl::PROGRAM_POINT_SIZE);
         }
     }
 
-    pub fn render(&self, points: &[Point2<f32>]) {
+    pub fn render(&self, boids: &[Boid]) {
         glx::clear_screen(0.1, 0.1, 0.1);
         unsafe {
             // This _should_ implement buffer orphaning
@@ -98,12 +106,12 @@ impl Renderer {
 
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (points.len() * mem::size_of::<Point2<f32>>()) as GLsizeiptr,
-                points.as_ptr() as *const _,
+                (boids.len() * mem::size_of::<Boid>()) as GLsizeiptr,
+                boids.as_ptr() as *const _,
                 gl::STREAM_DRAW,
             );
 
-            gl::DrawArrays(gl::POINTS, 0, points.len() as i32);
+            gl::DrawArrays(gl::POINTS, 0, boids.len() as i32);
         }
     }
 }
