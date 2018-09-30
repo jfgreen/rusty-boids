@@ -135,6 +135,7 @@ pub fn build_configs(
             width: width,
             height: height,
             boid_size: sim_config.boid_size,
+            max_speed: sim_config.max_speed,
         },
     ))
 }

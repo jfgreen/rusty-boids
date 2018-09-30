@@ -1,6 +1,6 @@
 use std::{mem, ptr};
 
-use cgmath::{Matrix, Matrix3};
+use cgmath::{Matrix, Matrix3, Point2};
 use gl::{self, types::*};
 use system::Boid;
 
@@ -10,11 +10,19 @@ use glx::{self, Buffer, ShaderProgram, VertexArray};
 static VS_SRC: &'static str = "
     #version 330 core
     layout (location = 0) in vec2 position;
+    layout (location = 1) in vec2 velocity;
 
     uniform mat3 transform;
     uniform float pointSize;
+    uniform float maxSpeed;
+
+    out vec4 pointColor;
 
     void main() {
+        pointColor = vec4(
+        1 - (velocity.y + maxSpeed) / (2*maxSpeed),
+        (velocity.x + maxSpeed) / (2*maxSpeed),
+        1.0, 1.0);
         gl_PointSize = pointSize;
         gl_Position = vec4(transform * vec3(position, 1.0), 1.0);
     }";
@@ -23,8 +31,10 @@ static FS_SRC: &'static str = "
     #version 330 core
     out vec4 frag_colour;
 
+    in vec4 pointColor;
+
     void main() {
-        frag_colour = vec4(0.7, 0.7, 0.7, 1.0);
+        frag_colour = pointColor;
     }";
 
 //TODO: Handle resizing of screen
@@ -35,11 +45,13 @@ pub struct RendererConfig {
     pub width: f32,
     pub height: f32,
     pub boid_size: f32,
+    pub max_speed: f32,
 }
 
 pub struct Renderer {
     transform: Matrix3<f32>,
     boid_size: f32,
+    max_speed: f32,
     program: ShaderProgram,
     vao: VertexArray,
     vbo: Buffer,
@@ -52,6 +64,7 @@ impl Renderer {
         Renderer {
             transform: glx::vtx_transform_2d(config.width, config.height),
             boid_size: config.boid_size,
+            max_speed: config.max_speed,
             program,
             vao: VertexArray::new(),
             vbo: Buffer::new(),
@@ -78,6 +91,13 @@ impl Renderer {
                 .expect("Could not find uniform");
             gl::Uniform1f(size_loc, self.boid_size as GLfloat);
 
+            // Set max speed
+            let max_speed_loc = self
+                .program
+                .get_uniform_location("maxSpeed")
+                .expect("Could not find uniform");
+            gl::Uniform1f(max_speed_loc, self.max_speed as GLfloat);
+
             // Specify the layout of the vertex data
             let pos_loc = self
                 .program
@@ -91,6 +111,20 @@ impl Renderer {
                 gl::FALSE,
                 mem::size_of::<Boid>() as GLsizei,
                 ptr::null(),
+            );
+
+            let vel_loc = self
+                .program
+                .get_atrib_location("velocity")
+                .expect("could not find velocity");
+            gl::EnableVertexAttribArray(vel_loc);
+            gl::VertexAttribPointer(
+                vel_loc,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                mem::size_of::<Boid>() as GLsizei,
+                mem::size_of::<Point2<f32>>() as *const GLvoid,
             );
 
             // Allow shader to specify point size
