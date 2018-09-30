@@ -8,7 +8,7 @@ use glutin::{
 
 use fps::{FpsCache, FpsCounter};
 use glx;
-use render::Renderer;
+use render::{Renderer, RendererConfig};
 use system::{FlockingConfig, FlockingSystem};
 
 const TITLE: &'static str = "rusty-boids";
@@ -102,25 +102,38 @@ impl Default for SimulationConfig {
     }
 }
 
-pub fn build_flocking_config(
+pub fn build_configs(
     sim_config: &SimulationConfig,
-    width: f32,
-    height: f32,
-) -> FlockingConfig {
-    FlockingConfig {
-        boid_count: sim_config.boid_count,
-        width: width,
-        height: height,
-        max_speed: sim_config.max_speed,
-        max_force: sim_config.max_force,
-        mouse_weight: sim_config.mouse_weight,
-        sep_weight: sim_config.sep_weight,
-        ali_weight: sim_config.ali_weight,
-        coh_weight: sim_config.coh_weight,
-        sep_radius: sim_config.sep_radius,
-        ali_radius: sim_config.ali_radius,
-        coh_radius: sim_config.coh_radius,
-    }
+    window: &GlWindow,
+) -> Result<(FlockingConfig, RendererConfig), SimulatorError> {
+    let hidpi = window.hidpi_factor();
+    let (width, height) = window
+        .get_inner_size()
+        .map(|(w, h)| (hidpi * w as f32, hidpi * h as f32))
+        .ok_or(SimulatorError::Window(
+            "Tried to get size of closed window".to_string(),
+        ))?;
+
+    Ok((
+        FlockingConfig {
+            boid_count: sim_config.boid_count,
+            width: width,
+            height: height,
+            max_speed: sim_config.max_speed,
+            max_force: sim_config.max_force,
+            mouse_weight: sim_config.mouse_weight,
+            sep_weight: sim_config.sep_weight,
+            ali_weight: sim_config.ali_weight,
+            coh_weight: sim_config.coh_weight,
+            sep_radius: sim_config.sep_radius,
+            ali_radius: sim_config.ali_radius,
+            coh_radius: sim_config.coh_radius,
+        },
+        RendererConfig {
+            width: width,
+            height: height,
+        },
+    ))
 }
 
 pub enum WindowSize {
@@ -135,10 +148,10 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     if config.debug {
         print_debug_info(&window);
     }
-    let (width, height) = get_window_size(&window)?;
-    let mut simulation = FlockingSystem::new(build_flocking_config(&config, width, height));
+    let (flock_conf, render_conf) = build_configs(&config, &window)?;
+    let mut simulation = FlockingSystem::new(flock_conf);
     simulation.randomise();
-    let renderer = Renderer::new(width, height);
+    let renderer = Renderer::new(render_conf);
     renderer.init_pipeline();
     let mut fps_counter = FpsCounter::new();
     let mut fps_cacher = FpsCache::new(CACHE_FPS_MS);
@@ -240,16 +253,6 @@ fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
     }
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
     Ok(())
-}
-
-fn get_window_size(window: &GlWindow) -> Result<(f32, f32), SimulatorError> {
-    let hidpi = window.hidpi_factor();
-    window
-        .get_inner_size()
-        .map(|(w, h)| (hidpi * w as f32, hidpi * h as f32))
-        .ok_or(SimulatorError::Window(
-            "Tried to get size of closed window".to_string(),
-        ))
 }
 
 fn print_debug_info(window: &GlWindow) {

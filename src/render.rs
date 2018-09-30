@@ -26,9 +26,13 @@ static FS_SRC: &'static str = "
     }";
 
 //TODO: Handle resizing of screen
-//TODO: Should we be explicity setting glViewport()?
 //TODO: Use hidpi_factor to scale gl_PointSize
 //TODO: How to run at different resolutions
+
+pub struct RendererConfig {
+    pub width: f32,
+    pub height: f32,
+}
 
 pub struct Renderer {
     transform: Matrix3<f32>,
@@ -38,11 +42,11 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(width: f32, height: f32) -> Renderer {
+    pub fn new(config: RendererConfig) -> Renderer {
         let program = ShaderProgram::new(VS_SRC, FS_SRC).expect("Problem creating shader program");
 
         Renderer {
-            transform: glx::vtx_transform_2d(width, height),
+            transform: glx::vtx_transform_2d(config.width, config.height),
             program,
             vao: VertexArray::new(),
             vbo: Buffer::new(),
