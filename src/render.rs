@@ -33,10 +33,12 @@ static FS_SRC: &'static str = "
 pub struct RendererConfig {
     pub width: f32,
     pub height: f32,
+    pub boid_size: f32,
 }
 
 pub struct Renderer {
     transform: Matrix3<f32>,
+    boid_size: f32,
     program: ShaderProgram,
     vao: VertexArray,
     vbo: Buffer,
@@ -48,6 +50,7 @@ impl Renderer {
 
         Renderer {
             transform: glx::vtx_transform_2d(config.width, config.height),
+            boid_size: config.boid_size,
             program,
             vao: VertexArray::new(),
             vbo: Buffer::new(),
@@ -72,7 +75,7 @@ impl Renderer {
                 .program
                 .get_uniform_location("pointSize")
                 .expect("Could not find uniform");
-            gl::Uniform1f(size_loc, 3.0 as GLfloat);
+            gl::Uniform1f(size_loc, self.boid_size as GLfloat);
 
             // Specify the layout of the vertex data
             let pos_loc = self

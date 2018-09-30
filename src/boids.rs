@@ -81,6 +81,7 @@ pub struct SimulationConfig {
     pub sep_radius: f32,
     pub ali_radius: f32,
     pub coh_radius: f32,
+    pub boid_size: f32,
 }
 
 impl Default for SimulationConfig {
@@ -98,6 +99,7 @@ impl Default for SimulationConfig {
             sep_weight: 1.5,
             ali_weight: 1.0,
             coh_weight: 1.0,
+            boid_size: 3.0,
         }
     }
 }
@@ -132,6 +134,7 @@ pub fn build_configs(
         RendererConfig {
             width: width,
             height: height,
+            boid_size: sim_config.boid_size,
         },
     ))
 }

@@ -43,6 +43,7 @@ impl ConfigBuilder {
         merge(&mut c.boid_count, uc.boid_count);
         merge(&mut c.debug, uc.debug);
         merge(&mut c.window_size, window_size(uc.window));
+        merge(&mut c.boid_size, uc.boid_size);
         if let Some(uc_flock) = uc.flocking {
             merge(&mut c.max_speed, uc_flock.max_speed);
             merge(&mut c.max_force, uc_flock.max_force);
@@ -173,6 +174,7 @@ struct UserSimulationConfig {
     debug: Option<bool>,
     window: Option<UserWindowConfig>,
     flocking: Option<UserFlockingConfig>,
+    boid_size: Option<f32>,
 }
 
 #[derive(Copy, Clone, Deserialize, Default)]
