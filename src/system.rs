@@ -2,7 +2,9 @@ use std::f32::consts::PI;
 
 use cgmath::{Basis2, InnerSpace, Point2, Rad, Rotation, Rotation2, Vector2};
 use rand::{
-    self, distributions::{IndependentSample, Range}, ThreadRng,
+    self,
+    distributions::{IndependentSample, Range},
+    ThreadRng,
 };
 
 type Position = Point2<f32>;
@@ -13,6 +15,9 @@ const TWO_PI: f32 = 2. * PI;
 const SHELL_GAPS: [usize; 9] = [1750, 701, 301, 132, 57, 23, 10, 4, 1];
 
 pub struct FlockingConfig {
+    pub boid_count: u32,
+    pub width: f32,
+    pub height: f32,
     pub max_speed: f32,
     pub max_force: f32,
     pub mouse_weight: f32,
@@ -22,26 +27,6 @@ pub struct FlockingConfig {
     pub sep_radius: f32,
     pub ali_radius: f32,
     pub coh_radius: f32,
-}
-
-impl Default for FlockingConfig {
-    fn default() -> Self {
-        FlockingConfig {
-            max_speed: 2.5,
-            max_force: 0.4,
-            mouse_weight: 600.,
-            sep_radius: 6.,
-            ali_radius: 11.5,
-            coh_radius: 11.5,
-            sep_weight: 1.5,
-            ali_weight: 1.0,
-            coh_weight: 1.0,
-            //max_force: 0.2,
-            //coh_radius: 40.,
-            //sep_radius: 20,
-            //ali_radius: 40.,
-        }
-    }
 }
 
 struct FlockingConstants {
@@ -88,8 +73,9 @@ pub struct FlockingSystem {
 }
 
 impl FlockingSystem {
-    pub fn new(width: f32, height: f32, boid_count: u32, conf: FlockingConfig) -> Self {
-        let (dim_x, dim_y) = grid_size(width, height, boid_count);
+    pub fn new(conf: FlockingConfig) -> Self {
+        // TODO: conf.grid_size()
+        let (dim_x, dim_y) = grid_size(conf.width, conf.height, conf.boid_count);
         let grid_capacity = dim_x * dim_y;
 
         // TODO: Use sentinal values so boid count can be exactly as requested
@@ -97,8 +83,8 @@ impl FlockingSystem {
         let boid_count = grid_capacity;
 
         FlockingSystem {
-            width,
-            height,
+            width: conf.width,
+            height: conf.height,
             boid_count,
             dim_x,
             dim_y,

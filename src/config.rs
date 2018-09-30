@@ -3,7 +3,8 @@ use std::{fmt, fs::File, io, io::prelude::*, process};
 use boids::{SimulationConfig, WindowSize};
 
 use clap::{
-    self, App, Arg, ArgMatches, ErrorKind::{HelpDisplayed, VersionDisplayed},
+    self, App, Arg, ArgMatches,
+    ErrorKind::{HelpDisplayed, VersionDisplayed},
 };
 use toml;
 
@@ -43,16 +44,15 @@ impl ConfigBuilder {
         merge(&mut c.debug, uc.debug);
         merge(&mut c.window_size, window_size(uc.window));
         if let Some(uc_flock) = uc.flocking {
-            let c_flock = &mut c.flock_conf;
-            merge(&mut c_flock.max_speed, uc_flock.max_speed);
-            merge(&mut c_flock.max_force, uc_flock.max_force);
-            merge(&mut c_flock.mouse_weight, uc_flock.mouse_weight);
-            merge(&mut c_flock.sep_weight, uc_flock.sep_weight);
-            merge(&mut c_flock.ali_weight, uc_flock.ali_weight);
-            merge(&mut c_flock.coh_weight, uc_flock.coh_weight);
-            merge(&mut c_flock.sep_radius, uc_flock.sep_radius);
-            merge(&mut c_flock.ali_radius, uc_flock.ali_radius);
-            merge(&mut c_flock.coh_radius, uc_flock.coh_radius);
+            merge(&mut c.max_speed, uc_flock.max_speed);
+            merge(&mut c.max_force, uc_flock.max_force);
+            merge(&mut c.mouse_weight, uc_flock.mouse_weight);
+            merge(&mut c.sep_weight, uc_flock.sep_weight);
+            merge(&mut c.ali_weight, uc_flock.ali_weight);
+            merge(&mut c.coh_weight, uc_flock.coh_weight);
+            merge(&mut c.sep_radius, uc_flock.sep_radius);
+            merge(&mut c.ali_radius, uc_flock.ali_radius);
+            merge(&mut c.coh_radius, uc_flock.coh_radius);
         }
     }
 
@@ -91,36 +91,31 @@ fn parse_cli_args() -> Result<ArgMatches<'static>, clap::Error> {
                 .long("config")
                 .value_name("FILE")
                 .help("Sets the config file to read simulation parameters from"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name(WINDOW_SIZE_ARG)
                 .short("s")
                 .long("size")
                 .value_names(&["width", "height"])
                 .use_delimiter(true)
                 .help("Sets the simultion window to specified width & height"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name(FULLSCREEN_ARG)
                 .short("f")
                 .long("fullscreen")
                 .help("Display fullscreen (overrides size argument)")
                 .conflicts_with("size"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name(BOID_COUNT_ARG)
                 .short("b")
                 .long("boid-count")
                 .takes_value(true)
                 .help("Sets the number of boids to simulate"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name(DEBUG_ARG)
                 .short("d")
                 .long("debug")
                 .help("print opengl debug information"),
-        )
-        .get_matches_safe();
+        ).get_matches_safe();
 
     if let Err(ref err) = args {
         if err.kind == VersionDisplayed || err.kind == HelpDisplayed {

@@ -56,13 +56,15 @@ impl Renderer {
             self.program.activate();
 
             // Set the tranform uniform
-            let trans_loc = self.program
+            let trans_loc = self
+                .program
                 .get_uniform_location("transform")
                 .expect("Could not find uniform");
             gl::UniformMatrix3fv(trans_loc, 1, gl::FALSE, self.transform.as_ptr());
 
             // Specify the layout of the vertex data
-            let pos_loc = self.program
+            let pos_loc = self
+                .program
                 .get_atrib_location("position")
                 .expect("could not find position");
             gl::EnableVertexAttribArray(pos_loc);

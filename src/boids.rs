@@ -72,7 +72,15 @@ pub struct SimulationConfig {
     pub boid_count: u32,
     pub window_size: WindowSize,
     pub debug: bool,
-    pub flock_conf: FlockingConfig,
+    pub max_speed: f32,
+    pub max_force: f32,
+    pub mouse_weight: f32,
+    pub sep_weight: f32,
+    pub ali_weight: f32,
+    pub coh_weight: f32,
+    pub sep_radius: f32,
+    pub ali_radius: f32,
+    pub coh_radius: f32,
 }
 
 impl Default for SimulationConfig {
@@ -81,8 +89,37 @@ impl Default for SimulationConfig {
             boid_count: 1000,
             window_size: WindowSize::Dimensions((800, 800)),
             debug: false,
-            flock_conf: FlockingConfig::default(),
+            max_speed: 2.5,
+            max_force: 0.4,
+            mouse_weight: 600.,
+            sep_radius: 6.,
+            ali_radius: 11.5,
+            coh_radius: 11.5,
+            sep_weight: 1.5,
+            ali_weight: 1.0,
+            coh_weight: 1.0,
         }
+    }
+}
+
+pub fn build_flocking_config(
+    sim_config: &SimulationConfig,
+    width: f32,
+    height: f32,
+) -> FlockingConfig {
+    FlockingConfig {
+        boid_count: sim_config.boid_count,
+        width: width,
+        height: height,
+        max_speed: sim_config.max_speed,
+        max_force: sim_config.max_force,
+        mouse_weight: sim_config.mouse_weight,
+        sep_weight: sim_config.sep_weight,
+        ali_weight: sim_config.ali_weight,
+        coh_weight: sim_config.coh_weight,
+        sep_radius: sim_config.sep_radius,
+        ali_radius: sim_config.ali_radius,
+        coh_radius: sim_config.coh_radius,
     }
 }
 
@@ -99,7 +136,7 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
         print_debug_info(&window);
     }
     let (width, height) = get_window_size(&window)?;
-    let mut simulation = FlockingSystem::new(width, height, config.boid_count, config.flock_conf);
+    let mut simulation = FlockingSystem::new(build_flocking_config(&config, width, height));
     simulation.randomise();
     let renderer = Renderer::new(width, height);
     renderer.init_pipeline();

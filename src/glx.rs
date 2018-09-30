@@ -3,7 +3,9 @@
 use cgmath::Matrix3;
 use gl::{self, types::*};
 use std::{
-    error, ffi::{CStr, CString}, fmt, ptr,
+    error,
+    ffi::{CStr, CString},
+    fmt, ptr,
 };
 
 pub fn get_gl_extensions() -> Vec<String> {
