@@ -11,9 +11,10 @@ static VS_SRC: &'static str = "
     layout (location = 0) in vec2 position;
 
     uniform mat3 transform;
+    uniform float pointSize;
 
     void main() {
-        gl_PointSize = 3.0;
+        gl_PointSize = pointSize;
         gl_Position = vec4(transform * vec3(position, 1.0), 1.0);
     }";
 
@@ -65,6 +66,13 @@ impl Renderer {
                 .get_uniform_location("transform")
                 .expect("Could not find uniform");
             gl::UniformMatrix3fv(trans_loc, 1, gl::FALSE, self.transform.as_ptr());
+
+            // Set the point size
+            let size_loc = self
+                .program
+                .get_uniform_location("pointSize")
+                .expect("Could not find uniform");
+            gl::Uniform1f(size_loc, 3.0 as GLfloat);
 
             // Specify the layout of the vertex data
             let pos_loc = self
