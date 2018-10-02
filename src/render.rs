@@ -14,15 +14,26 @@ static VS_SRC: &'static str = "
 
     uniform mat3 transform;
     uniform float pointSize;
-    uniform float maxSpeed;
+    uniform float maxSpeedSquared;
 
     out vec4 pointColor;
 
+    float two_pi = 6.2831853072;
+
+    vec3 rgb_from_hsb(in vec3 c){
+        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),
+                                 6.0)-3.0)-1.0,
+                         0.0,
+                         1.0 );
+        rgb = rgb*rgb*(3.0-2.0*rgb);
+        return c.z * mix(vec3(1.0), rgb, c.y);
+    }
+
+    float mag_2 = pow(velocity.x, 2) + pow(velocity.y, 2);
+
+    float a = atan(velocity.y, velocity.x);
     void main() {
-        pointColor = vec4(
-        1 - (velocity.y + maxSpeed) / (2*maxSpeed),
-        (velocity.x + maxSpeed) / (2*maxSpeed),
-        1.0, 1.0);
+        pointColor = vec4(rgb_from_hsb(vec3(a/two_pi, 1 - (mag_2 / maxSpeedSquared), 1.0)), 1.0);
         gl_PointSize = pointSize;
         gl_Position = vec4(transform * vec3(position, 1.0), 1.0);
     }";
@@ -94,9 +105,9 @@ impl Renderer {
             // Set max speed
             let max_speed_loc = self
                 .program
-                .get_uniform_location("maxSpeed")
+                .get_uniform_location("maxSpeedSquared")
                 .expect("Could not find uniform");
-            gl::Uniform1f(max_speed_loc, self.max_speed as GLfloat);
+            gl::Uniform1f(max_speed_loc, self.max_speed.powi(2) as GLfloat);
 
             // Specify the layout of the vertex data
             let pos_loc = self
