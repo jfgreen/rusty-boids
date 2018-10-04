@@ -5,7 +5,6 @@
 ### Implementation improvements
 
 - Think of better name for project!
-- Experiment with both "struct of arrays" and "array of structs" for modeling boids.
 - Use of "margins" in wrap around code is currently a bit of a hack.
 - Make simulation frame independent (fix your time step article is great)
 - Use sentinel values in spatial grid to allow exactly the number of requested boids.
@@ -22,7 +21,6 @@
 
 #### Up next
 
-- Allow simulation parameters to be supplied via config file
 - Have several presets for different kinds of flock
 - Option to support cursor interaction only when pressing down the mouse button.
 - Allow pausing the simulation.
@@ -58,11 +56,9 @@
 #### Up Next
 
 - Offer more than one renderers/shader.
-- Pretty colours!
 
 #### Maybe one day
 
-- Render velocity somehow?
 - Support switching between different renderers/shaders at run time.
 - Allow running at different resolutions.
 
@@ -78,7 +74,6 @@
 
 - Dont rely on vsync to keep 60fps
 - Update glutin
-- Apply cargo fmt
 - Slim down size of main loop
 - Reconsider how to process glutin events, current implementation has redundant structs.
   (Re-implements a lot of window events)
