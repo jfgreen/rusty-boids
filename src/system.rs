@@ -233,11 +233,13 @@ impl FlockingSystem {
     }
 
     fn calculate_forces(&mut self) {
+        let mut neighbours = Vec::with_capacity(10);
         for row in 0..self.dim_y {
             for col in 0..self.dim_x {
                 let boid_index = self.query_boid_index(col, row);
                 let mut force = Vector2::new(0., 0.);
-                let neighbours = self.find_neighbours(col, row, boid_index);
+                neighbours.clear();
+                self.find_neighbours(col, row, boid_index, &mut neighbours);
                 force += self.react_to_neighbours(boid_index, &neighbours);
                 force += self.react_to_mouse(boid_index);
                 self.forces[boid_index] = force;
@@ -258,9 +260,8 @@ impl FlockingSystem {
     }
 
     // TODO: See if we can lose box?
-    fn find_neighbours(&self, col: usize, row: usize, boid_index: usize) -> Box<[usize]> {
+    fn find_neighbours(&self, col: usize, row: usize, boid_index: usize, neighbourhood: &mut Vec<usize>) {
         let boid = &self.boids[boid_index];
-        let mut neighbourhood = vec![];
 
         //TODO: Sort the neighbours below into memory access patter order
         //TODO: Could try other "kernals"
@@ -382,8 +383,6 @@ impl FlockingSystem {
                 neighbourhood.push(neighbour);
             }
         }
-
-        neighbourhood.into_boxed_slice()
     }
 
     fn react_to_neighbours(&mut self, boid_index: usize, neighbours: &[usize]) -> Force {
