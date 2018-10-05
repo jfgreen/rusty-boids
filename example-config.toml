@@ -1,0 +1,17 @@
+boid_count=60000    # Desired number of boids in simulation
+boid_size=4         # Size each boid is rendererd
+debug=false         # Enable / disable debug mode
+
+[window]
+size = [1000, 800]  # Size of simulation window
+
+[flocking]
+max_speed=2.5       # Maximum speed boids can travel
+max_force=0.4       # Maximum force that can be exerted on a boid
+mouse_weight=600    # Weight used to scale mouse interactions
+sep_radius=6        # Distance at which a boid will try to avoid a neighbour
+ali_radius=11.5     # Distance at which a boid will try to align a neighbour
+coh_radius=11.5     # Distance at which a boid will try to steer towards a neighbour
+sep_weight=1.5      # Weight used to scale seperation forces
+ali_weight=1.0      # Weight used to scale alignment forces
+coh_weight=1.0      # Weight used to scale cohesion forces
