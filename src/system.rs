@@ -83,6 +83,7 @@ pub struct FlockingSystem {
     forces: Vec<Force>,
     params: FlockingConstants,
     mouse_position: Position,
+    mouse_multiplier: f32,
     rng: ThreadRng,
 }
 
@@ -107,6 +108,7 @@ impl FlockingSystem {
             forces: vec![Force::new(0., 0.); boid_count],
             params: FlockingConstants::from_config(conf),
             mouse_position: Position::new(0., 0.),
+            mouse_multiplier: 1.,
             rng: rand::thread_rng(),
         }
     }
@@ -140,6 +142,14 @@ impl FlockingSystem {
 
     pub fn set_mouse(&mut self, x: f32, y: f32) {
         self.mouse_position = Position::new(x, y);
+    }
+
+    pub fn enable_mouse_attraction(&mut self) {
+        self.mouse_multiplier = -1.;
+    }
+
+    pub fn enable_mouse_repulsion(&mut self) {
+        self.mouse_multiplier = 1.;
     }
 
     pub fn boids(&self) -> &[Boid] {
@@ -253,7 +263,7 @@ impl FlockingSystem {
         let dist_sq = from_mouse.magnitude2();
         if dist_sq > 0. {
             let repulse = self.params.mouse_weight / dist_sq;
-            from_mouse.normalize_to(repulse)
+            from_mouse.normalize_to(repulse) * self.mouse_multiplier
         } else {
             Force::new(0., 0.)
         }

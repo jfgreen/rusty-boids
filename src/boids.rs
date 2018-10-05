@@ -166,6 +166,8 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
             Some(ControlEvent::Stop) => running = false,
             Some(ControlEvent::Key(k)) => handle_key(&mut simulation, k),
             Some(ControlEvent::MouseMove(x, y)) => simulation.set_mouse(x, y),
+            Some(ControlEvent::MousePress) => simulation.enable_mouse_attraction(),
+            Some(ControlEvent::MouseRelease) => simulation.enable_mouse_repulsion(),
             _ => (),
         });
         renderer.render(&simulation.boids());
@@ -192,6 +194,8 @@ enum ControlEvent {
     Stop,
     Key(VirtualKeyCode),
     MouseMove(f32, f32),
+    MousePress,
+    MouseRelease,
 }
 
 fn process_event(event: glutin::Event) -> Option<ControlEvent> {
@@ -200,6 +204,7 @@ fn process_event(event: glutin::Event) -> Option<ControlEvent> {
         _ => None,
     }
 }
+
 
 fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
     use glutin::{ElementState, KeyboardInput, WindowEvent};
@@ -217,6 +222,14 @@ fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
         WindowEvent::CursorMoved {
             position: (x, y), ..
         } => Some(ControlEvent::MouseMove(x as f32, y as f32)),
+
+        WindowEvent::MouseInput {
+            state: ElementState::Pressed, ..
+        } => Some(ControlEvent::MousePress),
+
+        WindowEvent::MouseInput {
+            state: ElementState::Released, ..
+        } => Some(ControlEvent::MouseRelease),
 
         WindowEvent::Closed => Some(ControlEvent::Stop),
         _ => None,
