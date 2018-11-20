@@ -134,7 +134,7 @@ impl FlockingSystem {
 
     // TODO: Supply a time delta to update so simulation can be frame independant
     pub fn update(&mut self) {
-        self.refresh_index();
+        self.sort_boids();
         self.calculate_forces();
         self.update_boids();
     }
@@ -175,7 +175,7 @@ impl FlockingSystem {
         }
     }
 
-    fn refresh_index(&mut self) {
+    fn sort_boids(&mut self) {
         //TODO: Could we pick the right starting gap such that we dont need these checks?
         for &gap in SHELL_GAPS.iter() {
             if gap < self.dim_x {
@@ -230,6 +230,7 @@ impl FlockingSystem {
     }
 
     //TODO: Try and lose these - replace with counter?
+    // could have iterators for row wise and column wise? (row, col, index)
     fn query_boid_grid(&self, column: usize, row: usize) -> Boid {
         self.boid_grid[column + (row * self.dim_x)]
     }
@@ -244,19 +245,19 @@ impl FlockingSystem {
         let mut neighbours = Vec::with_capacity(10); // FIXME: remove hardcoded
         for row in 0..self.dim_y {
             for col in 0..self.dim_x {
-                let boid_index = col + (row * self.dim_x); // TODO: replace with actual boid?
+                let boid_index = col + (row * self.dim_x);
+                let boid = self.boid_grid[boid_index];
                 let mut force = Vector2::new(0., 0.);
                 neighbours.clear();
-                self.find_neighbours(col, row, boid_index, &mut neighbours);
-                force += self.react_to_neighbours(boid_index, &neighbours);
-                force += self.react_to_mouse(boid_index);
+                self.find_neighbours(col, row, boid, &mut neighbours);
+                force += self.react_to_neighbours(boid, &neighbours);
+                force += self.react_to_mouse(boid);
                 self.forces[boid_index] = force;
             }
         }
     }
 
-    fn react_to_mouse(&mut self, boid_index: usize) -> Force {
-        let boid = &self.boid_grid[boid_index];
+    fn react_to_mouse(&mut self, boid: Boid) -> Force {
         let from_mouse = boid.position - self.mouse_position;
         let dist_sq = from_mouse.magnitude2();
         if dist_sq > 0. {
@@ -267,10 +268,8 @@ impl FlockingSystem {
         }
     }
 
-    fn find_neighbours(&self, col: usize, row: usize, boid_index: usize, neighbourhood: &mut Vec<usize>) {
-        let boid = &self.boid_grid[boid_index];
-
-        //TODO: Sort the neighbours below into memory access patter order
+    fn find_neighbours(&self, col: usize, row: usize, boid: Boid, neighbourhood: &mut Vec<Boid>) {
+        //TODO: Sort the neighbours below into memory access pattern order
         //TODO: Could try other "kernals"
 
         //TODO Remove use of i32, use usize instead
@@ -386,22 +385,20 @@ impl FlockingSystem {
             let nx = (col as i32 + x) as usize;
             let ny = (row as i32 + y) as usize;
             if nx > 0 && nx < self.dim_x && ny > 0 && ny < self.dim_y {
-                let neighbour = nx + (ny * self.dim_x);
+                let neighbour = self.boid_grid[nx + (ny * self.dim_x)];
                 neighbourhood.push(neighbour);
             }
         }
     }
 
-    fn react_to_neighbours(&mut self, boid_index: usize, neighbours: &[usize]) -> Force {
+    fn react_to_neighbours(&mut self, boid: Boid, neighbours: &[Boid]) -> Force {
         let mut dodge = Vector2::new(0., 0.);
         let mut ali_vel_acc = Vector2::new(0., 0.);
         let mut ali_vel_count = 0;
         let mut coh_pos_acc = Vector2::new(0., 0.);
         let mut coh_pos_count = 0;
 
-        let boid = &self.boid_grid[boid_index];
         for &other in neighbours {
-            let other = &self.boid_grid[other];
             let from_neighbour = boid.position - other.position;
             let dist_squared = from_neighbour.magnitude2();
             if dist_squared > 0. {
