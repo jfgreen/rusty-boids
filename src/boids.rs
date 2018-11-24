@@ -205,7 +205,6 @@ fn process_event(event: glutin::Event) -> Option<ControlEvent> {
     }
 }
 
-
 fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
     use glutin::{ElementState, KeyboardInput, WindowEvent};
     match event {
@@ -224,11 +223,13 @@ fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
         } => Some(ControlEvent::MouseMove(x as f32, y as f32)),
 
         WindowEvent::MouseInput {
-            state: ElementState::Pressed, ..
+            state: ElementState::Pressed,
+            ..
         } => Some(ControlEvent::MousePress),
 
         WindowEvent::MouseInput {
-            state: ElementState::Released, ..
+            state: ElementState::Released,
+            ..
         } => Some(ControlEvent::MouseRelease),
 
         WindowEvent::Closed => Some(ControlEvent::Stop),
