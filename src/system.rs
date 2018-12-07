@@ -406,13 +406,10 @@ impl FlockingSystem {
 }
 
 fn grid_size(width: f32, height: f32, desired_count: u32) -> (usize, usize) {
-    let aspect_ratio = height / width;
-    let mut dim_x: u32 = 0;
-    let mut dim_y: u32 = 0;
-    while dim_x * dim_y < desired_count {
-        dim_x += 1;
-        dim_y = (dim_x as f32 * aspect_ratio) as u32;
-    }
+    let aspect_ratio = width / height;
+    let dim_y_unrounded = (desired_count as f32 / aspect_ratio).sqrt();
+    let dim_y = dim_y_unrounded.ceil();
+    let dim_x = (dim_y_unrounded * aspect_ratio).ceil();
     (dim_x as usize, dim_y as usize)
 }
 
