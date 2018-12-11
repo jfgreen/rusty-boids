@@ -92,31 +92,36 @@ fn parse_cli_args() -> Result<ArgMatches<'static>, clap::Error> {
                 .long("config")
                 .value_name("FILE")
                 .help("Sets the config file to read simulation parameters from"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name(WINDOW_SIZE_ARG)
                 .short("s")
                 .long("size")
                 .value_names(&["width", "height"])
                 .use_delimiter(true)
                 .help("Sets the simultion window to specified width & height"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name(FULLSCREEN_ARG)
                 .short("f")
                 .long("fullscreen")
                 .help("Display fullscreen (overrides size argument)")
                 .conflicts_with("size"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name(BOID_COUNT_ARG)
                 .short("b")
                 .long("boid-count")
                 .takes_value(true)
                 .help("Sets the number of boids to simulate"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name(DEBUG_ARG)
                 .short("d")
                 .long("debug")
                 .help("print opengl debug information"),
-        ).get_matches_safe();
+        )
+        .get_matches_safe();
 
     if let Err(ref err) = args {
         if err.kind == VersionDisplayed || err.kind == HelpDisplayed {

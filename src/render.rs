@@ -1,8 +1,8 @@
 use std::{mem, ptr};
 
+use crate::system::Boid;
 use cgmath::{Matrix, Matrix3, Point2};
 use gl::{self, types::*};
-use crate::system::Boid;
 
 use crate::glx::{self, Buffer, ShaderProgram, VertexArray};
 
