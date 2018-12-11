@@ -6,10 +6,10 @@ use glutin::{
     GlRequest, GlWindow, VirtualKeyCode, WindowBuilder,
 };
 
-use fps::{FpsCache, FpsCounter};
-use glx;
-use render::{Renderer, RendererConfig};
-use system::{FlockingConfig, FlockingSystem};
+use crate::fps::{FpsCache, FpsCounter};
+use crate::glx;
+use crate::render::{Renderer, RendererConfig};
+use crate::system::{FlockingConfig, FlockingSystem};
 
 const TITLE: &'static str = "rusty-boids";
 const CACHE_FPS_MS: u64 = 500;

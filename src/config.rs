@@ -1,6 +1,6 @@
 use std::{fmt, fs::File, io, io::prelude::*, process};
 
-use boids::{SimulationConfig, WindowSize};
+use crate::boids::{SimulationConfig, WindowSize};
 
 use clap::{
     self, App, Arg, ArgMatches,

@@ -2,9 +2,9 @@ use std::{mem, ptr};
 
 use cgmath::{Matrix, Matrix3, Point2};
 use gl::{self, types::*};
-use system::Boid;
+use crate::system::Boid;
 
-use glx::{self, Buffer, ShaderProgram, VertexArray};
+use crate::glx::{self, Buffer, ShaderProgram, VertexArray};
 
 // Shader sources
 static VS_SRC: &'static str = "

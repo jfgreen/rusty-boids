@@ -18,8 +18,8 @@ mod glx;
 mod render;
 mod system;
 
-use boids::run_simulation;
-use config::build_config;
+use crate::boids::run_simulation;
+use crate::config::build_config;
 
 fn main() {
     let config = build_config().unwrap_or_else(|err| {
