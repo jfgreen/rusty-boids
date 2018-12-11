@@ -28,7 +28,7 @@ A big list of things worth doing or looking into  are listed in [TODO.md](TODO.m
 The simulation parameters can be set via a toml configuration file.
 
 ```
-`cargo run --release -- -c simulation.toml`
+cargo run --release -- -c simulation.toml
 ```
 
 See `example-config.toml` for an explination of the different parameters.
