@@ -104,7 +104,7 @@ impl Default for SimulationConfig {
     }
 }
 
-pub fn build_configs(
+fn build_configs(
     sim_config: &SimulationConfig,
     window: &GlWindow,
 ) -> Result<(FlockingConfig, RendererConfig), SimulatorError> {

@@ -1,5 +1,5 @@
 [package]
-name = "rust-boids"
+name = "aproxiflock"
 version = "0.1.0"
 authors = ["James Green <jagreen@thoughtworks.com>"]
 edition = '2018'
@@ -17,6 +17,16 @@ serde_derive = "1.0.45"
 version = "2.29.0"
 default-features = false
 
+[dev-dependencies]
+criterion = "0.2.7"
+
+[[bench]]
+name = "flocking_system"
+harness = false
+
 [profile.release]
-codegen-units=1
+lto = true
 incremental = false
+
+[lib]
+name = "aproxiflock"
