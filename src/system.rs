@@ -119,15 +119,15 @@ impl FlockingSystem {
 
     pub fn centralise(&mut self) {
         let center = Position::new(self.width / 2., self.height / 2.);
-        for i in 0..self.boid_count {
-            self.boid_grid[i].position = center;
+        for boid in &mut self.boid_grid {
+            boid.position = center
         }
         self.randomise_velocities();
     }
 
     pub fn zeroise(&mut self) {
-        for i in 0..self.boid_count {
-            self.boid_grid[i].position = Position::new(0., 0.);
+        for boid in &mut self.boid_grid {
+            boid.position = Position::new(0., 0.);
         }
         self.randomise_velocities();
     }
@@ -158,20 +158,20 @@ impl FlockingSystem {
     fn randomise_positions(&mut self) {
         let sim_space_x = Range::new(0., self.width);
         let sim_space_y = Range::new(0., self.height);
-        for i in 0..self.boid_count {
+        for boid in &mut self.boid_grid {
             let x = sim_space_x.ind_sample(&mut self.rng);
             let y = sim_space_y.ind_sample(&mut self.rng);
-            self.boid_grid[i].position = Point2::new(x, y);
+            boid.position = Point2::new(x, y);
         }
     }
 
     fn randomise_velocities(&mut self) {
         let vel_space = Range::new(0., self.params.max_speed);
         let ang_space = Range::new(0., TWO_PI);
-        for i in 0..self.boid_count {
+        for boid in &mut self.boid_grid {
             let a = ang_space.ind_sample(&mut self.rng);
             let m = vel_space.ind_sample(&mut self.rng);
-            self.boid_grid[i].velocity = velocity_from_polar(a, m);
+            boid.velocity = velocity_from_polar(a, m);
         }
     }
 
@@ -380,6 +380,7 @@ impl FlockingSystem {
     }
 
     fn update_boids(&mut self) {
+        // TODO: Would be nice if we could remove this last reliance on boid_count
         for i in 0..self.boid_count {
             // Update velocity
             let vel = self.boid_grid[i].velocity + self.forces[i];
