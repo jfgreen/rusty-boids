@@ -2,3 +2,5 @@
 **/*.rs.bk
 
 *.sw[po]
+
+*.DS_Store
