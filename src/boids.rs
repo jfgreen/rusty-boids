@@ -162,10 +162,7 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
         simulation.update();
         events_loop.poll_events(|e| match event_filter.process(e) {
             Some(BoidControlEvent::Stop) => running = false,
-            Some(BoidControlEvent::Key(k)) => handle_key(&mut simulation, k),
-            Some(BoidControlEvent::MouseMove(x, y)) => simulation.set_mouse(x, y),
-            Some(BoidControlEvent::MousePress) => simulation.enable_mouse_attraction(),
-            Some(BoidControlEvent::MouseRelease) => simulation.enable_mouse_repulsion(),
+            Some(event) => handle_event(&mut simulation, event),
             _ => (),
         });
         renderer.render(&simulation.boids());
@@ -188,11 +185,14 @@ fn get_window_dimensions(window: &GlWindow) -> Result<(dpi::LogicalSize, f64), S
     Ok((logical_size, hidpi_factor))
 }
 
-fn handle_key(simulation: &mut FlockingSystem, key: VirtualKeyCode) {
-    match key {
-        VirtualKeyCode::R => simulation.randomise(),
-        VirtualKeyCode::F => simulation.zeroise(),
-        VirtualKeyCode::C => simulation.centralise(),
+fn handle_event(simulation: &mut FlockingSystem, event: BoidControlEvent) {
+    match event {
+        BoidControlEvent::MouseMove(x, y) => simulation.set_mouse(x, y),
+        BoidControlEvent::MousePress => simulation.enable_mouse_attraction(),
+        BoidControlEvent::MouseRelease => simulation.enable_mouse_repulsion(),
+        BoidControlEvent::Key(VirtualKeyCode::R) => simulation.randomise(),
+        BoidControlEvent::Key(VirtualKeyCode::F) => simulation.zeroise(),
+        BoidControlEvent::Key(VirtualKeyCode::C) => simulation.centralise(),
         _ => (),
     }
 }
