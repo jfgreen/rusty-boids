@@ -157,11 +157,15 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     let mut fps_counter = FpsCounter::new();
     let mut fps_cacher = FpsCache::new(CACHE_FPS_MS);
     let mut running = true;
+    let mut paused = false;
     let event_filter = EventFilter::new(hidpi_factor);
     while running {
-        simulation.update();
+        if !paused {
+            simulation.update();
+        }
         events_loop.poll_events(|e| match event_filter.process(e) {
             Some(BoidControlEvent::Stop) => running = false,
+            Some(BoidControlEvent::Pause) => paused = !paused,
             Some(event) => handle_event(&mut simulation, event),
             _ => (),
         });

@@ -2,6 +2,7 @@ use glutin::{self, dpi, VirtualKeyCode};
 
 pub enum BoidControlEvent {
     Stop,
+    Pause,
     Key(VirtualKeyCode),
     MouseMove(f32, f32),
     MousePress,
@@ -37,6 +38,7 @@ impl EventFilter {
                 ..
             } => match key {
                 VirtualKeyCode::Escape | VirtualKeyCode::Q => Some(BoidControlEvent::Stop),
+                VirtualKeyCode::Space => Some(BoidControlEvent::Pause),
                 _ => Some(BoidControlEvent::Key(key)),
             },
 

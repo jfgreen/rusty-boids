@@ -23,7 +23,6 @@
 
 - Have several presets for different kinds of flock
 - Option to support cursor interaction only when pressing down the mouse button.
-- Allow pausing the simulation.
 
 #### Maybe one day
 
