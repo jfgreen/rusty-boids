@@ -2,10 +2,11 @@ use std::{error, fmt, process};
 
 use gl;
 use glutin::{
-    self, Api, ContextBuilder, ContextError, CreationError, EventsLoop, GlContext, GlProfile,
+    self, dpi, Api, ContextBuilder, ContextError, CreationError, EventsLoop, GlContext, GlProfile,
     GlRequest, GlWindow, VirtualKeyCode, WindowBuilder,
 };
 
+use crate::event::{BoidControlEvent, EventFilter};
 use crate::fps::{FpsCache, FpsCounter};
 use crate::glx;
 use crate::render::{Renderer, RendererConfig};
@@ -106,17 +107,11 @@ impl Default for SimulationConfig {
 
 fn build_configs(
     sim_config: &SimulationConfig,
-    window: &GlWindow,
-) -> Result<(FlockingConfig, RendererConfig), SimulatorError> {
-    let hidpi = window.hidpi_factor();
-    let (width, height) = window
-        .get_inner_size()
-        .map(|(w, h)| (hidpi * w as f32, hidpi * h as f32))
-        .ok_or(SimulatorError::Window(
-            "Tried to get size of closed window".to_string(),
-        ))?;
-
-    Ok((
+    size: dpi::PhysicalSize,
+) -> (FlockingConfig, RendererConfig) {
+    let width = size.width as f32;
+    let height = size.height as f32;
+    (
         FlockingConfig {
             boid_count: sim_config.boid_count,
             width: width,
@@ -137,7 +132,7 @@ fn build_configs(
             boid_size: sim_config.boid_size,
             max_speed: sim_config.max_speed,
         },
-    ))
+    )
 }
 
 pub enum WindowSize {
@@ -152,7 +147,9 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     if config.debug {
         print_debug_info(&window);
     }
-    let (flock_conf, render_conf) = build_configs(&config, &window)?;
+    let (logical_size, hidpi_factor) = get_window_dimensions(&window)?;
+    let physical_size = logical_size.to_physical(hidpi_factor);
+    let (flock_conf, render_conf) = build_configs(&config, physical_size);
     let mut simulation = FlockingSystem::new(flock_conf);
     simulation.randomise();
     let renderer = Renderer::new(render_conf);
@@ -160,14 +157,15 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     let mut fps_counter = FpsCounter::new();
     let mut fps_cacher = FpsCache::new(CACHE_FPS_MS);
     let mut running = true;
+    let event_filter = EventFilter::new(hidpi_factor);
     while running {
         simulation.update();
-        events_loop.poll_events(|e| match process_event(e) {
-            Some(ControlEvent::Stop) => running = false,
-            Some(ControlEvent::Key(k)) => handle_key(&mut simulation, k),
-            Some(ControlEvent::MouseMove(x, y)) => simulation.set_mouse(x, y),
-            Some(ControlEvent::MousePress) => simulation.enable_mouse_attraction(),
-            Some(ControlEvent::MouseRelease) => simulation.enable_mouse_repulsion(),
+        events_loop.poll_events(|e| match event_filter.process(e) {
+            Some(BoidControlEvent::Stop) => running = false,
+            Some(BoidControlEvent::Key(k)) => handle_key(&mut simulation, k),
+            Some(BoidControlEvent::MouseMove(x, y)) => simulation.set_mouse(x, y),
+            Some(BoidControlEvent::MousePress) => simulation.enable_mouse_attraction(),
+            Some(BoidControlEvent::MouseRelease) => simulation.enable_mouse_repulsion(),
             _ => (),
         });
         renderer.render(&simulation.boids());
@@ -181,66 +179,21 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     Ok(())
 }
 
+fn get_window_dimensions(window: &GlWindow) -> Result<(dpi::LogicalSize, f64), SimulatorError> {
+    let hidpi_factor = window.get_hidpi_factor();
+    let logical_size = window.get_inner_size().ok_or(SimulatorError::Window(
+        "Tried to get size of closed window".to_string(),
+    ))?;
+
+    Ok((logical_size, hidpi_factor))
+}
+
 fn handle_key(simulation: &mut FlockingSystem, key: VirtualKeyCode) {
     match key {
         VirtualKeyCode::R => simulation.randomise(),
         VirtualKeyCode::F => simulation.zeroise(),
         VirtualKeyCode::C => simulation.centralise(),
         _ => (),
-    }
-}
-
-enum ControlEvent {
-    Stop,
-    Key(VirtualKeyCode),
-    MouseMove(f32, f32),
-    MousePress,
-    MouseRelease,
-}
-
-fn process_event(event: glutin::Event) -> Option<ControlEvent> {
-    match event {
-        glutin::Event::WindowEvent { event: e, .. } => process_window_event(e),
-        _ => None,
-    }
-}
-
-fn process_window_event(event: glutin::WindowEvent) -> Option<ControlEvent> {
-    use glutin::{ElementState, KeyboardInput, WindowEvent};
-    match event {
-        WindowEvent::KeyboardInput {
-            input:
-                KeyboardInput {
-                    state: ElementState::Pressed,
-                    virtual_keycode: Some(k),
-                    ..
-                },
-            ..
-        } => process_keypress(k),
-
-        WindowEvent::CursorMoved {
-            position: (x, y), ..
-        } => Some(ControlEvent::MouseMove(x as f32, y as f32)),
-
-        WindowEvent::MouseInput {
-            state: ElementState::Pressed,
-            ..
-        } => Some(ControlEvent::MousePress),
-
-        WindowEvent::MouseInput {
-            state: ElementState::Released,
-            ..
-        } => Some(ControlEvent::MouseRelease),
-
-        WindowEvent::Closed => Some(ControlEvent::Stop),
-        _ => None,
-    }
-}
-
-fn process_keypress(key: VirtualKeyCode) -> Option<ControlEvent> {
-    match key {
-        VirtualKeyCode::Escape | VirtualKeyCode::Q => Some(ControlEvent::Stop),
-        _ => Some(ControlEvent::Key(key)),
     }
 }
 
@@ -254,7 +207,9 @@ fn build_window(
             let screen = Some(events_loop.get_primary_monitor());
             window_builder.with_fullscreen(screen)
         }
-        &WindowSize::Dimensions((width, height)) => window_builder.with_dimensions(width, height),
+        &WindowSize::Dimensions((width, height)) => {
+            window_builder.with_dimensions(dpi::LogicalSize::new(width.into(), height.into()))
+        }
     };
 
     let context_builder = ContextBuilder::new()
@@ -282,5 +237,5 @@ fn print_debug_info(window: &GlWindow) {
         glx::get_gl_str(gl::SHADING_LANGUAGE_VERSION)
     );
     println!("Extensions: {}", glx::get_gl_extensions().join(","));
-    println!("Hidpi factor: {}", window.hidpi_factor());
+    println!("Hidpi factor: {}", window.get_hidpi_factor());
 }

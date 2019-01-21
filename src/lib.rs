@@ -15,6 +15,7 @@ pub mod boids;
 pub mod config;
 pub mod system;
 
+mod event;
 mod fps;
 mod glx;
 mod render;
