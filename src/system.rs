@@ -76,7 +76,6 @@ impl Boid {
 pub struct FlockingSystem {
     width: f32,
     height: f32,
-    boid_count: usize,
     dim_x: usize,
     dim_y: usize,
     boid_grid: Vec<Boid>,
@@ -100,7 +99,6 @@ impl FlockingSystem {
         FlockingSystem {
             width: conf.width,
             height: conf.height,
-            boid_count,
             dim_x,
             dim_y,
             boid_grid: (0..boid_count).map(|_| Boid::new()).collect(),
@@ -380,14 +378,14 @@ impl FlockingSystem {
     }
 
     fn update_boids(&mut self) {
-        // TODO: Would be nice if we could remove this last reliance on boid_count
-        for i in 0..self.boid_count {
+        for (mut boid, force) in self.boid_grid.iter_mut().zip(self.forces.iter()) {
+
             // Update velocity
-            let vel = self.boid_grid[i].velocity + self.forces[i];
-            self.boid_grid[i].velocity = limit(vel, self.params.max_speed);
+            let vel = boid.velocity + force;
+            boid.velocity = limit(vel, self.params.max_speed);
 
             // Update position
-            let mut new_pos = self.boid_grid[i].position + self.boid_grid[i].velocity;
+            let mut new_pos = boid.position + boid.velocity;
             if new_pos.x <= 0. {
                 new_pos.x = new_pos.x + self.width;
             }
@@ -400,7 +398,7 @@ impl FlockingSystem {
             if new_pos.y >= self.height {
                 new_pos.y = new_pos.y - self.height;
             }
-            self.boid_grid[i].position = new_pos
+            boid.position = new_pos
         }
     }
 }
