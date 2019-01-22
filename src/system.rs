@@ -388,19 +388,18 @@ impl FlockingSystem {
 
             // Update position
             let mut new_pos = self.boid_grid[i].position + self.boid_grid[i].velocity;
-            //FIXME: horrible hack, find a better way
             if new_pos.x <= 0. {
-                new_pos.x = self.width - 0.1
-            };
+                new_pos.x = new_pos.x + self.width;
+            }
             if new_pos.y <= 0. {
-                new_pos.y = self.height - 0.1
-            };
+                new_pos.y = new_pos.y + self.height;
+            }
             if new_pos.x >= self.width {
-                new_pos.x = 0.1
-            };
+                new_pos.x = new_pos.x - self.width;
+            }
             if new_pos.y >= self.height {
-                new_pos.y = 0.1
-            };
+                new_pos.y = new_pos.y - self.height;
+            }
             self.boid_grid[i].position = new_pos
         }
     }
