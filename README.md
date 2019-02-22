@@ -2,9 +2,7 @@
 
 This is a 2D boid simulator written in Rust. 🕊
 
-To run with a given number of boids:
-
-`cargo run --release -- -b 40000`
+`cargo run --release -- -c example-config.toml`
 
 Aims:
 
@@ -26,9 +24,5 @@ A big list of things worth doing or looking into  are listed in [TODO.md](TODO.m
 ## Configuring
 
 The simulation parameters can be set via a toml configuration file.
-
-```
-cargo run --release -- -c simulation.toml
-```
 
 See `example-config.toml` for an explination of the different parameters.
