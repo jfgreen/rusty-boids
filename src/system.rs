@@ -257,7 +257,7 @@ impl FlockingSystem {
                 let boid = boid.clone();
                 force += self.react_to_neighbours(&boid, &neighbours);
                 force += self.react_to_mouse(&boid);
-                self.forces[boid_index] = force;
+                unsafe { *self.forces.get_unchecked_mut(boid_index) = force };
             }
         }
     }
