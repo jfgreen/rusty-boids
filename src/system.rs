@@ -229,13 +229,19 @@ impl FlockingSystem {
 
     //TODO: Try and lose these - replace with counter?
     // could have iterators for row wise and column wise? (row, col, index)
+    #[inline = "always"]
     fn query_boid_grid(&self, column: usize, row: usize) -> Boid {
-        self.boid_grid[column + (row * self.dim_x)]
+        unsafe { *self.boid_grid.get_unchecked(column + (row * self.dim_x)) }
     }
 
     //TODO: As above
+    #[inline = "always"]
     fn update_boid_grid(&mut self, column: usize, row: usize, boid: Boid) {
-        self.boid_grid[column + (row * self.dim_x)] = boid;
+        unsafe {
+            *self
+                .boid_grid
+                .get_unchecked_mut(column + (row * self.dim_x)) = boid
+        };
     }
 
     fn calculate_forces(&mut self) {
@@ -244,7 +250,7 @@ impl FlockingSystem {
         for row in 0..self.dim_y {
             for col in 0..self.dim_x {
                 let boid_index = col + (row * self.dim_x);
-                let boid = self.boid_grid[boid_index];
+                let boid = unsafe { *self.boid_grid.get_unchecked(boid_index) };
                 let mut force = Vector2::new(0., 0.);
                 neighbours.clear();
                 self.find_neighbours(col, row, boid, &mut neighbours);
@@ -321,7 +327,7 @@ impl FlockingSystem {
             let nx = (col as i32 + x) as usize;
             let ny = (row as i32 + y) as usize;
             if nx > 0 && nx < self.dim_x && ny > 0 && ny < self.dim_y {
-                let neighbour = self.boid_grid[nx + (ny * self.dim_x)];
+                let neighbour = unsafe { *self.boid_grid.get_unchecked(nx + (ny * self.dim_x)) };
                 neighbourhood.push(neighbour);
             }
         }
@@ -379,7 +385,6 @@ impl FlockingSystem {
 
     fn update_boids(&mut self) {
         for (mut boid, force) in self.boid_grid.iter_mut().zip(self.forces.iter()) {
-
             // Update velocity
             let vel = boid.velocity + force;
             boid.velocity = limit(vel, self.params.max_speed);
