@@ -67,7 +67,7 @@ impl FpsCounter {
     pub fn average_fps(&self) -> u32 {
         let dt = self.average_delta();
         if dt > Duration::from_secs(0) && dt < Duration::from_secs(1) {
-            1000_000_000 / dt.subsec_nanos()
+            1_000_000_000 / dt.subsec_nanos()
         } else {
             0
         }

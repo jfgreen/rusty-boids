@@ -149,9 +149,7 @@ impl ShaderProgram {
             let program_id = link_program(vrtx_shader, frag_shader)?;
             gl::DeleteShader(vrtx_shader);
             gl::DeleteShader(frag_shader);
-            let program = ShaderProgram {
-                program_id: program_id,
-            };
+            let program = ShaderProgram { program_id };
             Ok(program)
         }
     }
