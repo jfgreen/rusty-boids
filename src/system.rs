@@ -334,7 +334,7 @@ impl FlockingSystem {
         }
     }
 
-    fn react_to_neighbours(&mut self, boid: &Boid, neighbours: &[Boid]) -> Force {
+    fn react_to_neighbours(&self, boid: &Boid, neighbours: &[Boid]) -> Force {
         let mut dodge = Vector2::new(0., 0.);
         let mut ali_vel_acc = Vector2::new(0., 0.);
         let mut ali_vel_count = 0;
@@ -393,16 +393,16 @@ impl FlockingSystem {
             // Update position
             let mut new_pos = boid.position + boid.velocity;
             if new_pos.x <= 0. {
-                new_pos.x = new_pos.x + self.width;
+                new_pos.x += self.width;
             }
             if new_pos.y <= 0. {
-                new_pos.y = new_pos.y + self.height;
+                new_pos.y += self.height;
             }
             if new_pos.x >= self.width {
-                new_pos.x = new_pos.x - self.width;
+                new_pos.x -= self.width;
             }
             if new_pos.y >= self.height {
-                new_pos.y = new_pos.y - self.height;
+                new_pos.y -= self.height;
             }
             boid.position = new_pos
         }

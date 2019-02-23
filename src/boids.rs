@@ -12,7 +12,7 @@ use crate::glx;
 use crate::render::{Renderer, RendererConfig};
 use crate::system::{FlockingConfig, FlockingSystem};
 
-const TITLE: &'static str = "rusty-boids";
+const TITLE: &str = "rusty-boids";
 const CACHE_FPS_MS: u64 = 500;
 
 #[derive(Debug)]
@@ -114,8 +114,8 @@ fn build_configs(
     (
         FlockingConfig {
             boid_count: sim_config.boid_count,
-            width: width,
-            height: height,
+            width,
+            height,
             max_speed: sim_config.max_speed,
             max_force: sim_config.max_force,
             mouse_weight: sim_config.mouse_weight,
@@ -127,8 +127,8 @@ fn build_configs(
             coh_radius: sim_config.coh_radius,
         },
         RendererConfig {
-            width: width,
-            height: height,
+            width,
+            height,
             boid_size: sim_config.boid_size,
             max_speed: sim_config.max_speed,
         },
@@ -182,9 +182,9 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
 
 fn get_window_dimensions(window: &GlWindow) -> Result<(dpi::LogicalSize, f64), SimulatorError> {
     let hidpi_factor = window.get_hidpi_factor();
-    let logical_size = window.get_inner_size().ok_or(SimulatorError::Window(
-        "Tried to get size of closed window".to_string(),
-    ))?;
+    let logical_size = window
+        .get_inner_size()
+        .ok_or_else(|| SimulatorError::Window("Tried to get size of closed window".to_string()))?;
 
     Ok((logical_size, hidpi_factor))
 }
@@ -207,13 +207,12 @@ fn build_window(
 ) -> Result<GlWindow, SimulatorError> {
     let window_builder = WindowBuilder::new().with_title(TITLE);
     let window_builder = match window_size {
-        &WindowSize::Fullscreen => {
+        WindowSize::Fullscreen => {
             let screen = Some(events_loop.get_primary_monitor());
             window_builder.with_fullscreen(screen)
         }
-        &WindowSize::Dimensions((width, height)) => {
-            window_builder.with_dimensions(dpi::LogicalSize::new(width.into(), height.into()))
-        }
+        WindowSize::Dimensions((width, height)) => window_builder
+            .with_dimensions(dpi::LogicalSize::new(f64::from(*width), f64::from(*height))),
     };
 
     let context_builder = ContextBuilder::new()
