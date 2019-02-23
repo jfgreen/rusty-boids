@@ -188,19 +188,23 @@ impl FlockingSystem {
     fn spatial_shell_pass_rows(&mut self, gap: usize) {
         for row in 0..self.dim_y {
             for col in gap..self.dim_x {
-                let temp_boid = self.query_boid_grid(col, row).clone();
+                let temp_boid = unsafe { self.query_boid_grid(col, row) }.clone();
                 let mut j = col;
                 while j >= gap {
-                    let curr_boid = self.query_boid_grid(j - gap, row);
+                    let curr_boid = unsafe { self.query_boid_grid(j - gap, row) };
                     if curr_boid.position.x < temp_boid.position.x {
-                        self.update_boid_grid(j, row, curr_boid.clone());
+                        unsafe {
+                            self.update_boid_grid(j, row, curr_boid.clone());
+                        }
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != col {
-                    self.update_boid_grid(j, row, temp_boid);
+                    unsafe {
+                        self.update_boid_grid(j, row, temp_boid);
+                    }
                 }
             }
         }
@@ -209,19 +213,23 @@ impl FlockingSystem {
     fn spatial_shell_pass_columns(&mut self, gap: usize) {
         for col in 0..self.dim_x {
             for row in gap..self.dim_y {
-                let temp_boid = self.query_boid_grid(col, row).clone();
+                let temp_boid = unsafe { self.query_boid_grid(col, row) }.clone();
                 let mut j = row;
                 while j >= gap {
-                    let curr_boid = self.query_boid_grid(col, j - gap);
+                    let curr_boid = unsafe { self.query_boid_grid(col, j - gap) };
                     if curr_boid.position.y < temp_boid.position.y {
-                        self.update_boid_grid(col, j, curr_boid.clone());
+                        unsafe {
+                            self.update_boid_grid(col, j, curr_boid.clone());
+                        }
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != row {
-                    self.update_boid_grid(col, j, temp_boid);
+                    unsafe {
+                        self.update_boid_grid(col, j, temp_boid);
+                    }
                 }
             }
         }
@@ -230,18 +238,16 @@ impl FlockingSystem {
     //TODO: Try and lose these - replace with counter?
     // could have iterators for row wise and column wise? (row, col, index)
     #[inline = "always"]
-    fn query_boid_grid(&self, column: usize, row: usize) -> &Boid {
-        unsafe { self.boid_grid.get_unchecked(column + (row * self.dim_x)) }
+    unsafe fn query_boid_grid(&self, column: usize, row: usize) -> &Boid {
+        self.boid_grid.get_unchecked(column + (row * self.dim_x))
     }
 
     //TODO: As above
     #[inline = "always"]
-    fn update_boid_grid(&mut self, column: usize, row: usize, boid: Boid) {
-        unsafe {
-            *self
-                .boid_grid
-                .get_unchecked_mut(column + (row * self.dim_x)) = boid
-        };
+    unsafe fn update_boid_grid(&mut self, column: usize, row: usize, boid: Boid) {
+        *self
+            .boid_grid
+            .get_unchecked_mut(column + (row * self.dim_x)) = boid
     }
 
     fn calculate_forces(&mut self) {
@@ -281,7 +287,7 @@ impl FlockingSystem {
 
         // This is essentially a look up table to determine which flockmates the boid is facing
         #[rustfmt::skip]
-        let neighbours: &[(i32, i32)] = match (v.x > 0., v.y > 0., v.x.abs() > v.y.abs()) {
+        let neighbours = match (v.x > 0., v.y > 0., v.x.abs() > v.y.abs()) {
             (true, true, true) => &[
                 (1, -1), (1, 0), (1, 1), (2, 0), (2, 1),
                 (0, 1), (2, 2), (0, -1), (2, -1), (1, 2),
