@@ -58,7 +58,7 @@ impl FlockingConstants {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Boid {
     position: Position,
     velocity: Velocity,
@@ -188,19 +188,19 @@ impl FlockingSystem {
     fn spatial_shell_pass_rows(&mut self, gap: usize) {
         for row in 0..self.dim_y {
             for col in gap..self.dim_x {
-                let temp_boid = self.query_boid_grid(col, row);
+                let temp_boid = self.query_boid_grid(col, row).clone();
                 let mut j = col;
                 while j >= gap {
                     let curr_boid = self.query_boid_grid(j - gap, row);
                     if curr_boid.position.x < temp_boid.position.x {
-                        self.update_boid_grid(j, row, curr_boid);
+                        self.update_boid_grid(j, row, &curr_boid.clone());
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != col {
-                    self.update_boid_grid(j, row, temp_boid);
+                    self.update_boid_grid(j, row, &temp_boid);
                 }
             }
         }
@@ -209,19 +209,19 @@ impl FlockingSystem {
     fn spatial_shell_pass_columns(&mut self, gap: usize) {
         for col in 0..self.dim_x {
             for row in gap..self.dim_y {
-                let temp_boid = self.query_boid_grid(col, row);
+                let temp_boid = self.query_boid_grid(col, row).clone();
                 let mut j = row;
                 while j >= gap {
                     let curr_boid = self.query_boid_grid(col, j - gap);
                     if curr_boid.position.y < temp_boid.position.y {
-                        self.update_boid_grid(col, j, curr_boid);
+                        self.update_boid_grid(col, j, &curr_boid.clone());
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != row {
-                    self.update_boid_grid(col, j, temp_boid);
+                    self.update_boid_grid(col, j, &temp_boid);
                 }
             }
         }
@@ -230,17 +230,17 @@ impl FlockingSystem {
     //TODO: Try and lose these - replace with counter?
     // could have iterators for row wise and column wise? (row, col, index)
     #[inline = "always"]
-    fn query_boid_grid(&self, column: usize, row: usize) -> Boid {
-        unsafe { *self.boid_grid.get_unchecked(column + (row * self.dim_x)) }
+    fn query_boid_grid(&self, column: usize, row: usize) -> &Boid {
+        unsafe { self.boid_grid.get_unchecked(column + (row * self.dim_x)) }
     }
 
     //TODO: As above
     #[inline = "always"]
-    fn update_boid_grid(&mut self, column: usize, row: usize, boid: Boid) {
+    fn update_boid_grid(&mut self, column: usize, row: usize, boid: &Boid) {
         unsafe {
             *self
                 .boid_grid
-                .get_unchecked_mut(column + (row * self.dim_x)) = boid
+                .get_unchecked_mut(column + (row * self.dim_x)) = boid.clone()
         };
     }
 
@@ -250,18 +250,19 @@ impl FlockingSystem {
         for row in 0..self.dim_y {
             for col in 0..self.dim_x {
                 let boid_index = col + (row * self.dim_x);
-                let boid = unsafe { *self.boid_grid.get_unchecked(boid_index) };
+                let boid = unsafe { self.boid_grid.get_unchecked(boid_index) };
                 let mut force = Vector2::new(0., 0.);
                 neighbours.clear();
                 self.find_neighbours(col, row, boid, &mut neighbours);
-                force += self.react_to_neighbours(boid, &neighbours);
-                force += self.react_to_mouse(boid);
+                let boid = boid.clone();
+                force += self.react_to_neighbours(&boid, &neighbours);
+                force += self.react_to_mouse(&boid);
                 self.forces[boid_index] = force;
             }
         }
     }
 
-    fn react_to_mouse(&mut self, boid: Boid) -> Force {
+    fn react_to_mouse(&mut self, boid: &Boid) -> Force {
         let from_mouse = boid.position - self.mouse_position;
         let dist_sq = from_mouse.magnitude2();
         if dist_sq > 0. {
@@ -272,7 +273,7 @@ impl FlockingSystem {
         }
     }
 
-    fn find_neighbours(&self, col: usize, row: usize, boid: Boid, neighbourhood: &mut Vec<Boid>) {
+    fn find_neighbours(&self, col: usize, row: usize, boid: &Boid, neighbourhood: &mut Vec<Boid>) {
         //TODO: Could try other "kernals"
         //TODO Remove use of i32, use usize instead
 
@@ -327,20 +328,20 @@ impl FlockingSystem {
             let nx = (col as i32 + x) as usize;
             let ny = (row as i32 + y) as usize;
             if nx > 0 && nx < self.dim_x && ny > 0 && ny < self.dim_y {
-                let neighbour = unsafe { *self.boid_grid.get_unchecked(nx + (ny * self.dim_x)) };
-                neighbourhood.push(neighbour);
+                let neighbour = unsafe { self.boid_grid.get_unchecked(nx + (ny * self.dim_x)) };
+                neighbourhood.push(neighbour.clone());
             }
         }
     }
 
-    fn react_to_neighbours(&mut self, boid: Boid, neighbours: &[Boid]) -> Force {
+    fn react_to_neighbours(&mut self, boid: &Boid, neighbours: &[Boid]) -> Force {
         let mut dodge = Vector2::new(0., 0.);
         let mut ali_vel_acc = Vector2::new(0., 0.);
         let mut ali_vel_count = 0;
         let mut coh_pos_acc = Vector2::new(0., 0.);
         let mut coh_pos_count = 0;
 
-        for &other in neighbours {
+        for other in neighbours {
             let from_neighbour = boid.position - other.position;
             let dist_squared = from_neighbour.magnitude2();
             if dist_squared > 0. {
