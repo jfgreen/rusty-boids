@@ -193,14 +193,14 @@ impl FlockingSystem {
                 while j >= gap {
                     let curr_boid = self.query_boid_grid(j - gap, row);
                     if curr_boid.position.x < temp_boid.position.x {
-                        self.update_boid_grid(j, row, &curr_boid.clone());
+                        self.update_boid_grid(j, row, curr_boid.clone());
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != col {
-                    self.update_boid_grid(j, row, &temp_boid);
+                    self.update_boid_grid(j, row, temp_boid);
                 }
             }
         }
@@ -214,14 +214,14 @@ impl FlockingSystem {
                 while j >= gap {
                     let curr_boid = self.query_boid_grid(col, j - gap);
                     if curr_boid.position.y < temp_boid.position.y {
-                        self.update_boid_grid(col, j, &curr_boid.clone());
+                        self.update_boid_grid(col, j, curr_boid.clone());
                     } else {
                         break;
                     }
                     j -= gap;
                 }
                 if j != row {
-                    self.update_boid_grid(col, j, &temp_boid);
+                    self.update_boid_grid(col, j, temp_boid);
                 }
             }
         }
@@ -236,11 +236,11 @@ impl FlockingSystem {
 
     //TODO: As above
     #[inline = "always"]
-    fn update_boid_grid(&mut self, column: usize, row: usize, boid: &Boid) {
+    fn update_boid_grid(&mut self, column: usize, row: usize, boid: Boid) {
         unsafe {
             *self
                 .boid_grid
-                .get_unchecked_mut(column + (row * self.dim_x)) = boid.clone()
+                .get_unchecked_mut(column + (row * self.dim_x)) = boid
         };
     }
 
