@@ -5,12 +5,10 @@
 ### Implementation improvements
 
 - Think of better name for project!
-- Use of "margins" in wrap around code is currently a bit of a hack.
 - Make simulation frame independent (fix your time step article is great)
 - Use sentinel values in spatial grid to allow exactly the number of requested boids.
 - Speed up computation with a parallel collection library like Rayon.
 - Dynamically select correct shell gap starting size.
-- Lose unnecessary use of Box, e.g in neighbourhood lookup.
 - Sort the neighbourhood lookup arrays into memory access pattern order.
 - Really dig down into runtime perf - use testing tools to find hotspots, bad caching
 - Dont recalculate the forces of each boid every frame, just enough of them.
@@ -48,13 +46,12 @@
 ### Implementation improvements
 
 - Handle resizing of screen.
-- Use `hidpi_factor` to scale `gl_PointSize`.
 
 ### Ideas
 
 #### Up Next
 
-- Offer more than one renderers/shader.
+- Offer more than one renderer/shader.
 
 #### Maybe one day
 
@@ -74,5 +71,3 @@
 - Dont rely on vsync to keep 60fps
 - Update glutin
 - Slim down size of main loop
-- Reconsider how to process glutin events, current implementation has redundant structs.
-  (Re-implements a lot of window events)

@@ -105,34 +105,37 @@ impl Default for SimulationConfig {
     }
 }
 
-fn build_configs(
+fn build_flocking_config(
     sim_config: &SimulationConfig,
-    size: dpi::PhysicalSize,
-) -> (FlockingConfig, RendererConfig) {
-    let width = size.width as f32;
-    let height = size.height as f32;
-    (
-        FlockingConfig {
-            boid_count: sim_config.boid_count,
-            width,
-            height,
-            max_speed: sim_config.max_speed,
-            max_force: sim_config.max_force,
-            mouse_weight: sim_config.mouse_weight,
-            sep_weight: sim_config.sep_weight,
-            ali_weight: sim_config.ali_weight,
-            coh_weight: sim_config.coh_weight,
-            sep_radius: sim_config.sep_radius,
-            ali_radius: sim_config.ali_radius,
-            coh_radius: sim_config.coh_radius,
-        },
-        RendererConfig {
-            width,
-            height,
-            boid_size: sim_config.boid_size,
-            max_speed: sim_config.max_speed,
-        },
-    )
+    window_size: &WindowSizeInfo,
+) -> FlockingConfig {
+    FlockingConfig {
+        //TODO: Does the update syntax work here?
+        boid_count: sim_config.boid_count,
+        width: window_size.width,
+        height: window_size.height,
+        max_speed: sim_config.max_speed,
+        max_force: sim_config.max_force,
+        mouse_weight: sim_config.mouse_weight,
+        sep_weight: sim_config.sep_weight,
+        ali_weight: sim_config.ali_weight,
+        coh_weight: sim_config.coh_weight,
+        sep_radius: sim_config.sep_radius,
+        ali_radius: sim_config.ali_radius,
+        coh_radius: sim_config.coh_radius,
+    }
+}
+
+fn build_render_config(
+    sim_config: &SimulationConfig,
+    window_size: &WindowSizeInfo,
+) -> RendererConfig {
+    RendererConfig {
+        width: window_size.width,
+        height: window_size.height,
+        boid_size: sim_config.boid_size * (window_size.hidpi_factor as f32),
+        max_speed: sim_config.max_speed,
+    }
 }
 
 pub enum WindowSize {
@@ -143,13 +146,10 @@ pub enum WindowSize {
 pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     let mut events_loop = EventsLoop::new();
     let window = build_window(&events_loop, &config.window_size)?;
-    gl_init(&window)?;
-    if config.debug {
-        print_debug_info(&window);
-    }
-    let (logical_size, hidpi_factor) = get_window_dimensions(&window)?;
-    let physical_size = logical_size.to_physical(hidpi_factor);
-    let (flock_conf, render_conf) = build_configs(&config, physical_size);
+    gl_init(&window, config.debug)?;
+    let window_size = get_window_size_info(&window)?;
+    let flock_conf = build_flocking_config(&config, &window_size);
+    let render_conf = build_render_config(&config, &window_size);
     let mut simulation = FlockingSystem::new(flock_conf);
     simulation.randomise();
     let renderer = Renderer::new(render_conf);
@@ -158,7 +158,7 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     let mut fps_cacher = FpsCache::new(CACHE_FPS_MS);
     let mut running = true;
     let mut paused = false;
-    let event_filter = EventFilter::new(hidpi_factor);
+    let event_filter = EventFilter::new(window_size.hidpi_factor);
     while running {
         if !paused {
             simulation.update();
@@ -180,13 +180,25 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     Ok(())
 }
 
-fn get_window_dimensions(window: &GlWindow) -> Result<(dpi::LogicalSize, f64), SimulatorError> {
+struct WindowSizeInfo {
+    width: f32,
+    height: f32,
+    hidpi_factor: f64,
+}
+
+fn get_window_size_info(window: &GlWindow) -> Result<WindowSizeInfo, SimulatorError> {
     let hidpi_factor = window.get_hidpi_factor();
     let logical_size = window
         .get_inner_size()
         .ok_or_else(|| SimulatorError::Window("Tried to get size of closed window".to_string()))?;
 
-    Ok((logical_size, hidpi_factor))
+    let physical_size = logical_size.to_physical(hidpi_factor);
+
+    Ok(WindowSizeInfo{
+        width: physical_size.width as f32,
+        height: physical_size.height as f32,
+        hidpi_factor,
+    })
 }
 
 fn handle_event(simulation: &mut FlockingSystem, event: BoidControlEvent) {
@@ -223,11 +235,16 @@ fn build_window(
     Ok(GlWindow::new(window_builder, context_builder, events_loop)?)
 }
 
-fn gl_init(window: &GlWindow) -> Result<(), SimulatorError> {
+fn gl_init(window: &GlWindow, debug: bool) -> Result<(), SimulatorError> {
     unsafe {
         window.make_current()?;
     }
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
+
+    if debug {
+        print_debug_info(&window);
+    }
+
     Ok(())
 }
 

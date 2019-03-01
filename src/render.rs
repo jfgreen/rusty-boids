@@ -49,7 +49,6 @@ static FS_SRC: &'static str = "
     }";
 
 //TODO: Handle resizing of screen
-//TODO: Use hidpi_factor to scale gl_PointSize
 //TODO: How to run at different resolutions
 
 pub struct RendererConfig {

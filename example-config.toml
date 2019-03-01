@@ -1,5 +1,5 @@
-boid_count=75000    # Desired number of boids in simulation
-boid_size=3         # Size each boid is rendererd
+boid_count=80000    # Desired number of boids in simulation
+boid_size=1.5       # Size each boid is rendererd
 debug=false         # Enable / disable debug mode
 
 [window]
