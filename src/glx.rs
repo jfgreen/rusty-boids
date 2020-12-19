@@ -3,10 +3,10 @@
 use cgmath::Matrix3;
 use gl::{self, types::*};
 use std::{
-    error,
     ffi::{CStr, CString},
     fmt, ptr,
 };
+use std::error::{self, Error};
 
 pub fn get_gl_extensions() -> Vec<String> {
     let mut results = vec![];
@@ -68,15 +68,7 @@ impl fmt::Display for ShaderError {
 }
 
 impl error::Error for ShaderError {
-    fn description(&self) -> &str {
-        match *self {
-            ShaderError::Compilation(ref err) => err,
-            ShaderError::Linking(ref err) => err,
-            ShaderError::Lookup(ref err) => err,
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
     }
 }

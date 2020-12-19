@@ -237,13 +237,13 @@ impl FlockingSystem {
 
     //TODO: Try and lose these - replace with counter?
     // could have iterators for row wise and column wise? (row, col, index)
-    #[inline = "always"]
+    #[inline(always)]
     unsafe fn query_boid_grid(&self, column: usize, row: usize) -> &Boid {
         self.boid_grid.get_unchecked(column + (row * self.dim_x))
     }
 
     //TODO: As above
-    #[inline = "always"]
+    #[inline(always)]
     unsafe fn update_boid_grid(&mut self, column: usize, row: usize, boid: Boid) {
         *self
             .boid_grid

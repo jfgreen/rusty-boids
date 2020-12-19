@@ -1,4 +1,6 @@
-use std::{error, fmt, process};
+use std::{fmt, process};
+use std::error::{self, Error};
+
 
 use gl;
 use glutin::{
@@ -33,15 +35,7 @@ impl fmt::Display for SimulatorError {
 }
 
 impl error::Error for SimulatorError {
-    fn description(&self) -> &str {
-        match *self {
-            SimulatorError::GlCreation(ref err) => err.description(),
-            SimulatorError::GlContext(ref err) => err.description(),
-            SimulatorError::Window(ref err) => err,
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
         match *self {
             SimulatorError::GlCreation(ref err) => Some(err),
             SimulatorError::GlContext(ref err) => Some(err),
@@ -110,7 +104,6 @@ fn build_flocking_config(
     window_size: &WindowSizeInfo,
 ) -> FlockingConfig {
     FlockingConfig {
-        //TODO: Does the update syntax work here?
         boid_count: sim_config.boid_count,
         width: window_size.width,
         height: window_size.height,
