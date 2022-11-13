@@ -1,25 +1,23 @@
-# Rust Boids
+# Approxiflock
 
-This is a 2D boid simulator written in Rust. 🕊
+This is a 2D boid simulator that uses approximation to allow real time rendering of fairly large flocks. 🕊
 
 `cargo run --release -- -c example-config.toml`
+
+![A pretty flock of boids](prettyflock.png)
 
 Aims:
 
 - Fast, CPU based simulation.
 - Support as many boids as possible.
-- Render at 60fps on commodity hardware.
+- Render at 60fps.
 
 This is achieved by using:
 
 - Approximate "neighbour grid" data structure.
 - Lookup table based FOV culling
-- (In progress) Parameters that expose performance/accuracy tradeoffs to the user.
+- Direct use of OpenGL for rendering.
 
-It also shows how the `glutin`, `gl` and `cgmath` crates can be used together to build a simulation.
-In particular, it demonstrates the boilerplate needed to do useful work with OpenGL.
-
-A big list of things worth doing or looking into  are listed in [TODO.md](TODO.md).
 
 ## Configuring
 
