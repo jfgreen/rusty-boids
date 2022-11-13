@@ -2,11 +2,11 @@
 
 use cgmath::Matrix3;
 use gl::{self, types::*};
+use std::error::{self, Error};
 use std::{
     ffi::{CStr, CString},
     fmt, ptr,
 };
-use std::error::{self, Error};
 
 pub fn get_gl_extensions() -> Vec<String> {
     let mut results = vec![];

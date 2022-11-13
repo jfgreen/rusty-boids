@@ -1,11 +1,8 @@
 use std::f32::consts::PI;
 
 use cgmath::{Basis2, InnerSpace, Point2, Rad, Rotation, Rotation2, Vector2};
-use rand::{
-    self,
-    distributions::{IndependentSample, Range},
-    ThreadRng,
-};
+
+use rand::prelude::*;
 
 type Position = Point2<f32>;
 type Velocity = Vector2<f32>;
@@ -106,7 +103,7 @@ impl FlockingSystem {
             params: FlockingConstants::from_config(conf),
             mouse_position: Position::new(0., 0.),
             mouse_multiplier: 1.,
-            rng: rand::thread_rng(),
+            rng: thread_rng(),
         }
     }
 
@@ -154,21 +151,17 @@ impl FlockingSystem {
     }
 
     fn randomise_positions(&mut self) {
-        let sim_space_x = Range::new(0., self.width);
-        let sim_space_y = Range::new(0., self.height);
         for boid in &mut self.boid_grid {
-            let x = sim_space_x.ind_sample(&mut self.rng);
-            let y = sim_space_y.ind_sample(&mut self.rng);
+            let x = self.rng.gen_range(0f32..self.width);
+            let y = self.rng.gen_range(0f32..self.height);
             boid.position = Point2::new(x, y);
         }
     }
 
     fn randomise_velocities(&mut self) {
-        let vel_space = Range::new(0., self.params.max_speed);
-        let ang_space = Range::new(0., TWO_PI);
         for boid in &mut self.boid_grid {
-            let a = ang_space.ind_sample(&mut self.rng);
-            let m = vel_space.ind_sample(&mut self.rng);
+            let a = self.rng.gen_range(0f32..self.params.max_speed);
+            let m = self.rng.gen_range(0f32..TWO_PI);
             boid.velocity = velocity_from_polar(a, m);
         }
     }

@@ -1,4 +1,5 @@
-use glutin::{self, dpi, VirtualKeyCode};
+use winit::dpi::PhysicalPosition;
+use winit::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 pub enum BoidControlEvent {
     Stop,
@@ -18,15 +19,14 @@ impl EventFilter {
         EventFilter { hidpi_factor }
     }
 
-    pub fn process(&self, event: glutin::Event) -> Option<BoidControlEvent> {
+    pub fn process<T>(&self, event: Event<T>) -> Option<BoidControlEvent> {
         match event {
-            glutin::Event::WindowEvent { event: e, .. } => self.process_window_event(e),
+            Event::WindowEvent { event: e, .. } => self.process_window_event(e),
             _ => None,
         }
     }
 
-    fn process_window_event(&self, event: glutin::WindowEvent) -> Option<BoidControlEvent> {
-        use glutin::{ElementState, KeyboardInput, WindowEvent};
+    fn process_window_event(&self, event: WindowEvent) -> Option<BoidControlEvent> {
         match event {
             WindowEvent::KeyboardInput {
                 input:
@@ -43,8 +43,7 @@ impl EventFilter {
             },
 
             WindowEvent::CursorMoved { position: pos, .. } => {
-                let dpi::PhysicalPosition { x, y } = pos.to_physical(self.hidpi_factor);
-                Some(BoidControlEvent::MouseMove(x as f32, y as f32))
+                Some(BoidControlEvent::MouseMove(pos.x as f32, pos.y as f32))
             }
 
             WindowEvent::MouseInput {

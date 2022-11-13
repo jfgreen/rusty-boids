@@ -2,27 +2,18 @@
 name = "aproxiflock"
 version = "0.1.0"
 authors = ["James Green"]
-edition = '2018'
+edition = '2021'
 
 [dependencies]
-gl = "0.11.0"
-glutin = "0.19.0"
-cgmath = "0.15.0"
-rand = "0.3.16"
-toml = "0.4"
-serde = "1.0.45"
-serde_derive = "1.0.45"
-
-[dependencies.clap]
-version = "2.29.0"
-default-features = false
-
-[dev-dependencies]
-criterion = "0.2.7"
-
-[[bench]]
-name = "flocking_system"
-harness = false
+gl = "0.14.0"
+glutin = "0.30.1"
+winit = "0.27.5"
+cgmath = "0.18.0"
+rand = "0.8.5"
+toml = "0.5.9"
+serde = "1.0.147"
+serde_derive = "1.0.147"
+raw-window-handle = "0.5.0"
 
 [profile.release]
 lto = true

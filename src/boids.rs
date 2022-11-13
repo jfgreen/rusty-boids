@@ -1,16 +1,28 @@
-use std::{fmt, process};
 use std::error::{self, Error};
-
+use std::ffi::{CStr, CString};
+use std::num::NonZeroU32;
+use std::{fmt, process};
 
 use gl;
-use glutin::{
-    self, dpi, Api, ContextBuilder, ContextError, CreationError, EventsLoop, GlContext, GlProfile,
-    GlRequest, GlWindow, VirtualKeyCode, WindowBuilder,
+
+use winit::dpi::LogicalSize;
+use winit::event::VirtualKeyCode;
+use winit::event_loop::EventLoop;
+use winit::window::{Fullscreen, Window, WindowBuilder};
+
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+
+use glutin::config::ConfigTemplateBuilder;
+use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile, Version};
+use glutin::display::{Display, DisplayApiPreference};
+use glutin::prelude::*;
+use glutin::surface::{
+    Surface, SurfaceAttributes, SurfaceAttributesBuilder, SwapInterval, WindowSurface,
 };
 
 use crate::event::{BoidControlEvent, EventFilter};
 use crate::fps::{FpsCache, FpsCounter};
-use crate::glx;
+use crate::glx; //TODO: Rename this module
 use crate::render::{Renderer, RendererConfig};
 use crate::system::{FlockingConfig, FlockingSystem};
 
@@ -19,16 +31,12 @@ const CACHE_FPS_MS: u64 = 500;
 
 #[derive(Debug)]
 pub enum SimulatorError {
-    GlCreation(CreationError),
-    GlContext(ContextError),
     Window(String),
 }
 
 impl fmt::Display for SimulatorError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SimulatorError::GlCreation(ref err) => write!(f, "GL creation error, {}", err),
-            SimulatorError::GlContext(ref err) => write!(f, "GL context error, {}", err),
             SimulatorError::Window(ref err) => write!(f, "Window error, {}", err),
         }
     }
@@ -37,22 +45,8 @@ impl fmt::Display for SimulatorError {
 impl error::Error for SimulatorError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match *self {
-            SimulatorError::GlCreation(ref err) => Some(err),
-            SimulatorError::GlContext(ref err) => Some(err),
             SimulatorError::Window(..) => None,
         }
-    }
-}
-
-impl From<CreationError> for SimulatorError {
-    fn from(err: CreationError) -> SimulatorError {
-        SimulatorError::GlCreation(err)
-    }
-}
-
-impl From<ContextError> for SimulatorError {
-    fn from(err: ContextError) -> SimulatorError {
-        SimulatorError::GlContext(err)
     }
 }
 
@@ -136,13 +130,90 @@ pub enum WindowSize {
     Dimensions((u32, u32)),
 }
 
-pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
-    let mut events_loop = EventsLoop::new();
-    let window = build_window(&events_loop, &config.window_size)?;
-    gl_init(&window, config.debug)?;
+pub fn run_simulation(sim_config: SimulationConfig) -> Result<(), SimulatorError> {
+    let mut event_loop = EventLoop::new();
+
+    let raw_display = event_loop.raw_display_handle();
+
+    //TODO: Handle error
+    let display = unsafe { Display::new(raw_display, DisplayApiPreference::Cgl).unwrap() };
+    println!("Running on: {}", display.version_string());
+
+    let template = ConfigTemplateBuilder::new()
+        .with_alpha_size(8)
+        .with_transparency(false)
+        .with_multisampling(0)
+        .build();
+
+    // TODO: Handle error
+    let config = unsafe { display.find_configs(template) }
+        .unwrap()
+        .next()
+        .unwrap();
+
+    println!("Picked a config with {} samples", config.num_samples());
+    println!("config {:?}", config);
+
+    let context_attributes = ContextAttributesBuilder::new()
+        .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+        .with_profile(GlProfile::Core)
+        .build(None);
+
+    // TODO: Handle error
+    // TODO: Can we do this later?
+    let non_current_gl_context = unsafe {
+        display
+            .create_context(&config, &context_attributes)
+            .unwrap()
+    };
+
+    let window_builder = WindowBuilder::new()
+        .with_title(TITLE)
+        .with_transparent(false);
+
+    let window_builder = match sim_config.window_size {
+        WindowSize::Fullscreen => {
+            window_builder.with_fullscreen(Some(Fullscreen::Borderless(None)))
+        }
+        WindowSize::Dimensions((w, h)) => window_builder.with_inner_size(LogicalSize::new(w, h)),
+    };
+
+    // TODO: Handle error
+    let window = window_builder.build(&event_loop).unwrap();
+
     let window_size = get_window_size_info(&window)?;
-    let flock_conf = build_flocking_config(&config, &window_size);
-    let render_conf = build_render_config(&config, &window_size);
+
+    //TODO: Use above window_size instead
+    let (width, height): (u32, u32) = window.inner_size().into();
+    let raw_window_handle = window.raw_window_handle();
+    let attributes = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+        raw_window_handle,
+        NonZeroU32::new(width).unwrap(),
+        NonZeroU32::new(height).unwrap(),
+    );
+
+    // TODO: Handle error
+    let surface = unsafe { display.create_window_surface(&config, &attributes).unwrap() };
+
+    // TODO: Handle error
+    let gl_context = non_current_gl_context.make_current(&surface).unwrap();
+
+    //TODO: Handle error
+    surface
+        .set_swap_interval(&gl_context, SwapInterval::Wait(NonZeroU32::new(1).unwrap()))
+        .unwrap();
+
+    gl::load_with(|symbol| {
+        let symbol = CString::new(symbol).unwrap();
+        display.get_proc_address(symbol.as_c_str()) as *const _
+    });
+
+    if sim_config.debug {
+        print_debug_info();
+    }
+
+    let flock_conf = build_flocking_config(&sim_config, &window_size);
+    let render_conf = build_render_config(&sim_config, &window_size);
     let mut simulation = FlockingSystem::new(flock_conf);
     simulation.randomise();
     let renderer = Renderer::new(render_conf);
@@ -152,24 +223,31 @@ pub fn run_simulation(config: SimulationConfig) -> Result<(), SimulatorError> {
     let mut running = true;
     let mut paused = false;
     let event_filter = EventFilter::new(window_size.hidpi_factor);
-    while running {
+    event_loop.run(move |event, event_loop_window_target, control_flow| {
+        control_flow.set_wait();
         if !paused {
             simulation.update();
         }
-        events_loop.poll_events(|e| match event_filter.process(e) {
-            Some(BoidControlEvent::Stop) => running = false,
+
+        //TODO: Hook into close requested
+
+        match event_filter.process(event) {
+            //TODO: Wire up exit
+            //Some(BoidControlEvent::Stop) => running = false,
             Some(BoidControlEvent::Pause) => paused = !paused,
             Some(event) => handle_event(&mut simulation, event),
             _ => (),
-        });
+        }
         renderer.render(&simulation.boids());
-        window.swap_buffers()?;
+        //TODO: Deal with errors
+        window.request_redraw();
+        surface.swap_buffers(&gl_context).unwrap();
         fps_counter.tick();
         fps_cacher.poll(&fps_counter, |new_fps| {
             let title = format!("{} - {:02} fps", TITLE, new_fps);
             window.set_title(&title);
         });
-    }
+    });
     Ok(())
 }
 
@@ -179,15 +257,11 @@ struct WindowSizeInfo {
     hidpi_factor: f64,
 }
 
-fn get_window_size_info(window: &GlWindow) -> Result<WindowSizeInfo, SimulatorError> {
-    let hidpi_factor = window.get_hidpi_factor();
-    let logical_size = window
-        .get_inner_size()
-        .ok_or_else(|| SimulatorError::Window("Tried to get size of closed window".to_string()))?;
+fn get_window_size_info(window: &Window) -> Result<WindowSizeInfo, SimulatorError> {
+    let hidpi_factor = window.scale_factor();
+    let physical_size = window.inner_size();
 
-    let physical_size = logical_size.to_physical(hidpi_factor);
-
-    Ok(WindowSizeInfo{
+    Ok(WindowSizeInfo {
         width: physical_size.width as f32,
         height: physical_size.height as f32,
         hidpi_factor,
@@ -206,42 +280,7 @@ fn handle_event(simulation: &mut FlockingSystem, event: BoidControlEvent) {
     }
 }
 
-fn build_window(
-    events_loop: &EventsLoop,
-    window_size: &WindowSize,
-) -> Result<GlWindow, SimulatorError> {
-    let window_builder = WindowBuilder::new().with_title(TITLE);
-    let window_builder = match window_size {
-        WindowSize::Fullscreen => {
-            let screen = Some(events_loop.get_primary_monitor());
-            window_builder.with_fullscreen(screen)
-        }
-        WindowSize::Dimensions((width, height)) => window_builder
-            .with_dimensions(dpi::LogicalSize::new(f64::from(*width), f64::from(*height))),
-    };
-
-    let context_builder = ContextBuilder::new()
-        .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
-        .with_gl_profile(GlProfile::Core)
-        .with_vsync(true);
-
-    Ok(GlWindow::new(window_builder, context_builder, events_loop)?)
-}
-
-fn gl_init(window: &GlWindow, debug: bool) -> Result<(), SimulatorError> {
-    unsafe {
-        window.make_current()?;
-    }
-    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
-
-    if debug {
-        print_debug_info(&window);
-    }
-
-    Ok(())
-}
-
-fn print_debug_info(window: &GlWindow) {
+fn print_debug_info() {
     println!("Vendor: {}", glx::get_gl_str(gl::VENDOR));
     println!("Renderer: {}", glx::get_gl_str(gl::RENDERER));
     println!("Version: {}", glx::get_gl_str(gl::VERSION));
@@ -250,5 +289,6 @@ fn print_debug_info(window: &GlWindow) {
         glx::get_gl_str(gl::SHADING_LANGUAGE_VERSION)
     );
     println!("Extensions: {}", glx::get_gl_extensions().join(","));
-    println!("Hidpi factor: {}", window.get_hidpi_factor());
+    //TODO: Print hidpi
+    //println!("Hidpi factor: {}", window.get_hidpi_factor());
 }

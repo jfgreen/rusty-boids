@@ -2,10 +2,9 @@ extern crate cgmath;
 extern crate gl;
 extern crate glutin;
 extern crate rand;
+extern crate raw_window_handle;
 extern crate toml;
-
-#[macro_use]
-extern crate clap;
+extern crate winit;
 
 #[macro_use]
 extern crate serde_derive;
